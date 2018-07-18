@@ -24,6 +24,12 @@ extern crate openssl;
 
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate serde_derive;
+#[macro_use]
+extern crate error_chain;
+
+
 extern crate byteorder;
 extern crate flate2;
 extern crate hyper;
@@ -31,12 +37,8 @@ extern crate hyperlocal;
 extern crate rustc_serialize;
 extern crate tar;
 extern crate url;
-#[macro_use]
-extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
-#[macro_use]
-extern crate error_chain;
 
 pub mod builder;
 pub mod errors;

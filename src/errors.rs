@@ -1,6 +1,6 @@
 //! Representations of various client errors
 
-use hyper::status::StatusCode;
+use hyper::StatusCode;
 
 error_chain! {
     types {
@@ -11,7 +11,6 @@ error_chain! {
         EnvVar(::std::env::VarError);
         Io(::std::io::Error);
         Hyper(::hyper::Error);
-        HyperParser(::hyper::error::ParseError);
         OpenSSL(::openssl::error::ErrorStack) #[cfg(feature = "ssl")];
         SerdeJsonError(::serde_json::error::Error);
     }

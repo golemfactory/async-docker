@@ -3,7 +3,7 @@
 //! Source of code without generic types:
 //! https://github.com/faradayio/boondock/blob/master/src/stats.rs
 
-use hyper::client::Response;
+use hyper::Response;
 use std::io::{BufRead, BufReader};
 use std::iter;
 
@@ -12,13 +12,14 @@ use serde::de::DeserializeOwned;
 use serde_json;
 use std::marker::PhantomData;
 
+/*
 pub struct BufIterator<T: DeserializeOwned> {
-    buf: BufReader<Response>,
+    buf: BufReader<Response<()>>,
     _phantom: PhantomData<T>,
 }
 
 impl<T: DeserializeOwned> BufIterator<T> {
-    pub fn new(r: Response) -> BufIterator<T> {
+    pub fn new(r: Response<()>) -> BufIterator<T> {
         BufIterator {
             buf: BufReader::new(r),
             _phantom: PhantomData,
@@ -41,3 +42,4 @@ impl<T: DeserializeOwned> iter::Iterator for BufIterator<T> {
         }
     }
 }
+*/

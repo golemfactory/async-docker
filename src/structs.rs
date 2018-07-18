@@ -20,7 +20,7 @@ use openssl::x509::X509_FILETYPE_PEM;
 #[cfg(feature = "ssl")]
 use std::path::Path;
 
-use reader::BufIterator;
+//use reader::BufIterator;
 
 pub use builder::*;
 
@@ -29,10 +29,9 @@ use errors::ErrorKind as EK;
 /// Represents the result of all docker operations
 pub use errors::Result;
 
-use hyper::client::Body;
-use hyper::header::ContentType;
-use hyper::method::Method;
-use hyper::{Client, Url};
+use hyper::Body;
+use hyper::Method;
+use hyper::{Client, Uri};
 use hyperlocal::UnixSocketConnector;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -49,25 +48,28 @@ use std::borrow::Cow;
 use std::env;
 use std::io::Read;
 use std::time::Duration;
-use transport::{tar, Transport};
+use transport::Transport;
 use tty::Tty;
 use url::form_urlencoded;
 use builder::ContainerArchiveOptions;
+use std::io::Cursor;
+use hyper::client::ResponseFuture;
+use hyper::Request;
 
 /// Entrypoint interface for communicating with docker daemon
-pub struct Docker {
-    transport: Transport,
+pub struct Docker<T> {
+    transport: Transport<T>,
 }
 
 /// Interface for accessing and manipulating a named docker image
-pub struct Image<'a, 'b> {
-    docker: &'a Docker,
+pub struct Image<'a, 'b, T: 'a> {
+    docker: &'a Docker<T>,
     name: Cow<'b, str>,
 }
 
-impl<'a, 'b> Image<'a, 'b> {
+impl<'a, 'b, T> Image<'a, 'b, T> {
     /// Exports an interface for operations that may be performed against a named image
-    pub fn new<S>(docker: &'a Docker, name: S) -> Image<'a, 'b>
+    pub fn new<S>(docker: &'a Docker<T>, name: S) -> Image<'a, 'b, T>
     where
         S: Into<Cow<'b, str>>,
     {
@@ -130,13 +132,13 @@ impl<'a, 'b> Image<'a, 'b> {
 }
 
 /// Interface for docker images
-pub struct Images<'a> {
-    docker: &'a Docker,
+pub struct Images<'a, T: 'a> {
+    docker: &'a Docker<T>,
 }
 
-impl<'a> Images<'a> {
+impl<'a, T> Images<'a, T> {
     /// Exports an interface for interacting with docker images
-    pub fn new(docker: &'a Docker) -> Images<'a> {
+    pub fn new(docker: &'a Docker<T>) -> Images<'a, T> {
         Images { docker }
     }
 
@@ -155,7 +157,7 @@ impl<'a> Images<'a> {
         let body = Body::BufBody(&bytes[..], bytes.len());
 
         self.docker
-            .stream_post(&path.join("?"), Some((body, tar())))
+            .stream_post(&path.join("?"), Some(body))
             .and_then(|r| ::serde_json::from_reader::<_, Vec<_>>(r).map_err(Error::from))
     }
 
@@ -172,7 +174,7 @@ impl<'a> Images<'a> {
     }
 
     /// Returns a reference to a set of operations available for a named image
-    pub fn get(&'a self, name: &'a str) -> Image {
+    pub fn get(&'a self, name: &'a str) -> Image<T> {
         Image::new(self.docker, name)
     }
 
@@ -185,7 +187,7 @@ impl<'a> Images<'a> {
     }
 
     /// Pull and create a new docker images from an existing image
-    pub fn pull(&self, opts: &PullOptions) -> Result<BufIterator<Value>> {
+    pub fn pull(&self, opts: &PullOptions) -> Result<ResponseFuture> {
         let mut path = vec!["/images/create".to_owned()];
 
         if let Some(query) = opts.serialize() {
@@ -193,7 +195,7 @@ impl<'a> Images<'a> {
         }
 
         self.docker
-            .bufreader_post(&path.join("?"), None as Option<(&'a str, ContentType)>)
+            .bufreader_post(&path.join("?"), None as Option<&'a str>)
     }
 
     /// exports a collection of named images,
@@ -216,14 +218,14 @@ impl<'a> Images<'a> {
 }
 
 /// Interface for accessing and manipulating a docker container
-pub struct Container<'a, 'b> {
-    docker: &'a Docker,
+pub struct Container<'a, 'b, T: 'a> {
+    docker: &'a Docker<T>,
     id: Cow<'b, str>,
 }
 
-impl<'a, 'b> Container<'a, 'b> {
+impl<'a, 'b, T> Container<'a, 'b, T> {
     /// Exports an interface exposing operations against a container instance
-    pub fn new<S>(docker: &'a Docker, id: S) -> Container<'a, 'b>
+    pub fn new<S>(docker: &'a Docker<T>, id: S) -> Container<'a, 'b, T>
     where
         S: Into<Cow<'b, str>>,
     {
@@ -287,7 +289,7 @@ impl<'a, 'b> Container<'a, 'b> {
     }
 
     /// Returns a stream of stats specific to this container instance
-    pub fn stats(&self) -> Result<BufIterator<Option<Stats>>> {
+    pub fn stats(&self) -> Result<ResponseFuture> {
         self.docker
             .bufreader_get(&format!("/containers/{}/stats", self.id)[..])
     }
@@ -296,7 +298,7 @@ impl<'a, 'b> Container<'a, 'b> {
     pub fn start(&'a self) -> Result<()> {
         let s = &format!("/containers/{}/start", self.id)[..];
         self.docker
-            .post(s, None as Option<(&'a str, ContentType)>)
+            .post(s, None as Option<&'a str>)
             .map(|_| ())
     }
 
@@ -310,7 +312,7 @@ impl<'a, 'b> Container<'a, 'b> {
         }
 
         self.docker
-            .post(&path.join("?"), None as Option<(&'a str, ContentType)>)
+            .post(&path.join("?"), None as Option<&'a str>)
             .map(|_| ())
     }
 
@@ -325,7 +327,7 @@ impl<'a, 'b> Container<'a, 'b> {
         }
 
         self.docker
-            .post(&path.join("?"), None as Option<(&'a str, ContentType)>)
+            .post(&path.join("?"), None as Option<&'a str>)
             .map(|_| ())
     }
 
@@ -339,7 +341,7 @@ impl<'a, 'b> Container<'a, 'b> {
         }
 
         self.docker
-            .post(&path.join("?"), None as Option<(&'a str, ContentType)>)
+            .post(&path.join("?"), None as Option<&'a str>)
             .map(|_| ())
     }
 
@@ -349,7 +351,7 @@ impl<'a, 'b> Container<'a, 'b> {
         let s = &format!("/containers/{}/rename?{}", self.id, query)[..];
 
         self.docker
-            .post(s, None as Option<(&'a str, ContentType)>)
+            .post(s, None as Option<&'a str>)
             .map(|_| ())
     }
 
@@ -358,7 +360,7 @@ impl<'a, 'b> Container<'a, 'b> {
         let s = &format!("/containers/{}/pause", self.id)[..];
 
         self.docker
-            .post(s, None as Option<(&'a str, ContentType)>)
+            .post(s, None as Option<&'a str>)
             .map(|_| ())
     }
 
@@ -367,14 +369,14 @@ impl<'a, 'b> Container<'a, 'b> {
         let s = &format!("/containers/{}/unpause", self.id)[..];
 
         self.docker
-            .post(s, None as Option<(&'a str, ContentType)>)
+            .post(s, None as Option<&'a str>)
             .map(|_| ())
     }
 
     /// Wait until the container stops
     pub fn wait(&self) -> Result<Exit> {
         let s = &format!("/containers/{}/wait", self.id)[..];
-        let raw = self.docker.post(s, None as Option<(&'a str, ContentType)>)?;
+        let raw = self.docker.post(s, None as Option<&'a str>)?;
 
         ::serde_json::from_str::<Exit>(&raw).map_err(Error::from)
     }
@@ -407,7 +409,7 @@ impl<'a, 'b> Container<'a, 'b> {
 
         let s = &format!("/containers/{}/exec", self.id)[..];
 
-        match self.docker.post(s, Some((&mut bytes, ContentType::json()))) {
+        match self.docker.post(s, Some(&mut bytes)) {
             Err(e) => Err(e),
             Ok(res) => {
                 let data = "{}";
@@ -426,7 +428,7 @@ impl<'a, 'b> Container<'a, 'b> {
                     let post = &format!("/exec/{}/start", id);
 
                     self.docker
-                        .stream_post(&post[..], Some((&mut bytes, ContentType::json())))
+                        .stream_post(&post[..], Some(&mut bytes))
                         .map(|stream| Tty::new(stream))
                 } else {
                     Err(Error::from_kind(EK::JsonTypeError("<anonymous>", "Object")))
@@ -449,7 +451,7 @@ impl<'a, 'b> Container<'a, 'b> {
         let body = Body::BufBody(&bytes[..], bytes.len());
 
         self.docker
-            .stream_put(&path.join("?"), Some((body, tar())))
+            .stream_put(&path.join("?"), Some(body))
             .map(|_| ())
     }
 
@@ -457,13 +459,13 @@ impl<'a, 'b> Container<'a, 'b> {
 }
 
 /// Interface for docker containers
-pub struct Containers<'a> {
-    docker: &'a Docker,
+pub struct Containers<'a, T: 'a> {
+    docker: &'a Docker<T>,
 }
 
-impl<'a> Containers<'a> {
+impl<'a, T> Containers<'a, T> {
     /// Exports an interface for interacting with docker containers
-    pub fn new(docker: &'a Docker) -> Containers<'a> {
+    pub fn new(docker: &'a Docker<T>) -> Containers<'a, T> {
         Containers { docker }
     }
 
@@ -480,7 +482,7 @@ impl<'a> Containers<'a> {
     }
 
     /// Returns a reference to a set of operations available to a specific container instance
-    pub fn get(&'a self, name: &'a str) -> Container {
+    pub fn get(&'a self, name: &'a str) -> Container<T> {
         Container::new(self.docker, name)
     }
 
@@ -496,20 +498,20 @@ impl<'a> Containers<'a> {
 
         let raw = self
             .docker
-            .post(&path.join("?"), Some((&mut bytes, ContentType::json())))?;
+            .post(&path.join("?"), Some(&mut bytes))?;
 
         ::serde_json::from_str::<ContainerCreateInfo>(&raw).map_err(Error::from)
     }
 }
 
 /// Interface for docker network
-pub struct Networks<'a> {
-    docker: &'a Docker,
+pub struct Networks<'a, T: 'a> {
+    docker: &'a Docker<T>,
 }
 
-impl<'a> Networks<'a> {
+impl<'a, T> Networks<'a, T> {
     /// Exports an interface for interacting with docker Networks
-    pub fn new(docker: &'a Docker) -> Networks<'a> {
+    pub fn new(docker: &'a Docker<T>) -> Networks<'a, T> {
         Networks { docker }
     }
 
@@ -526,7 +528,7 @@ impl<'a> Networks<'a> {
     }
 
     /// Returns a reference to a set of operations available to a specific network instance
-    pub fn get(&'a self, id: &'a str) -> Network {
+    pub fn get(&'a self, id: &'a str) -> Network<T> {
         Network::new(self.docker, id)
     }
 
@@ -537,21 +539,21 @@ impl<'a> Networks<'a> {
 
         let raw = self
             .docker
-            .post(&path.join("?"), Some((&mut bytes, ContentType::json())))?;
+            .post(&path.join("?"), Some(&mut bytes))?;
 
         ::serde_json::from_str::<NetworkCreateInfo>(&raw).map_err(Error::from)
     }
 }
 
 /// Interface for accessing and manipulating a docker network
-pub struct Network<'a, 'b> {
-    docker: &'a Docker,
+pub struct Network<'a, 'b, T: 'a> {
+    docker: &'a Docker<T>,
     id: Cow<'b, str>,
 }
 
-impl<'a, 'b> Network<'a, 'b> {
+impl<'a, 'b, T> Network<'a, 'b, T> {
     /// Exports an interface exposing operations against a network instance
-    pub fn new<S>(docker: &'a Docker, id: S) -> Network<'a, 'b>
+    pub fn new<S>(docker: &'a Docker<T>, id: S) -> Network<'a, 'b, T>
     where
         S: Into<Cow<'b, str>>,
     {
@@ -596,27 +598,27 @@ impl<'a, 'b> Network<'a, 'b> {
         let s = &format!("/networks/{}/{}", self.id, segment)[..];
 
         self.docker
-            .post(s, Some((&mut bytes, ContentType::json())))
+            .post(s, Some(&mut bytes))
             .map(|_| ())
     }
 }
 
 // https://docs.docker.com/reference/api/docker_remote_api_v1.17/
-impl Docker {
+impl <T> Docker<T> {
     /// constructs a new Docker instance for a docker host listening at a url specified by an env var `DOCKER_HOST`,
     /// falling back on unix:///var/run/docker.sock
-    pub fn new(host: Option<String>) -> Result<Docker> {
+    pub fn new(host: Option<String>) -> Result<Docker<T>> {
         host
             .ok_or(env::var("DOCKER_HOST"))
             .or_else(|_| Ok("unix:///var/run/docker.sock".to_owned()))
-            .and_then(|h| Url::parse(&h).map_err(Error::from))
+            .and_then(|h| Uri::parse(Cursor::from(&h)).map_err(Error::from))
             .and_then(Docker::host)
     }
 
     /// constructs a new Docker instance for docker host listening at the given host url
-    pub fn host(host: Url) -> Result<Docker> {
-        match host.scheme().as_ref() {
-            "unix" => Ok(Docker {
+    pub fn host(host: Uri) -> Result<Docker<T>> {
+        match host.scheme_part().map(|s| s.as_str().as_ref()) {
+            Some("unix") => Ok(Docker {
                 transport: Transport::Unix {
                     client: Client::with_connector(UnixSocketConnector),
                     path: host.path().to_owned(),
@@ -676,16 +678,16 @@ impl Docker {
     }
 
     /// Exports an interface for interacting with docker images
-    pub fn images<'a>(&'a self) -> Images {
+    pub fn images<'a>(&'a self) -> Images<T> {
         Images::new(self)
     }
 
     /// Exports an interface for interacting with docker containers
-    pub fn containers<'a>(&'a self) -> Containers {
+    pub fn containers<'a>(&'a self) -> Containers<T> {
         Containers::new(self)
     }
 
-    pub fn networks<'a>(&'a self) -> Networks {
+    pub fn networks<'a>(&'a self) -> Networks<T> {
         Networks::new(self)
     }
 
@@ -707,7 +709,7 @@ impl Docker {
     }
 
     /// Returns an interator over streamed docker events
-    pub fn events(&self, opts: &EventsOptions) -> Result<BufIterator<Event>> {
+    pub fn events(&self, opts: &EventsOptions) -> Result<ResponseFuture> {
         let mut path = vec!["/events".to_owned()];
 
         if let Some(query) = opts.serialize() {
@@ -717,36 +719,38 @@ impl Docker {
         self.bufreader_get(&path.join("?")[..])
     }
 
-    fn get<'a>(&self, endpoint: &str) -> Result<String> {
-        self.transport.request(
+    fn get<'a>(&self, endpoint: &str) -> Result<Request<T>> {
+        self.transport.build_request(
             Method::Get,
             endpoint,
-            None as Option<(&'a str, ContentType)>,
+            None as Option<&'a str>,
         )
     }
 
-    fn post<'a, B>(&'a self, endpoint: &str, body: Option<(B, ContentType)>) -> Result<String>
+    fn post<'a, B>(&'a self, endpoint: &str, body: Option<B>) -> Result<String>
     where
-        B: Into<Body<'a>>,
+        B: Into<Body>,
     {
-        self.transport.request(Method::Post, endpoint, body)
+        self.transport.build_request(Method::Post, endpoint, body)
     }
 
-    fn delete<'a>(&self, endpoint: &str) -> Result<String> {
-        self.transport.request(
+    fn delete<'a>(&self, endpoint: &str) -> Result<ResponseFuture> {
+        let req = self.transport.build_request(
             Method::Delete,
             endpoint,
-            None as Option<(&'a str, ContentType)>,
-        )
+            None as Option<&'a str>,
+        ).unwrap();
+
+
     }
 
     fn stream_post<'a, B>(
         &'a self,
         endpoint: &str,
-        body: Option<(B, ContentType)>,
+        body: Option<B>,
     ) -> Result<Box<Read>>
     where
-        B: Into<Body<'a>>,
+        B: Into<Body>,
     {
         self.transport.stream(Method::Post, endpoint, body)
     }
@@ -754,42 +758,19 @@ impl Docker {
     fn stream_put<'a, B>(
         &'a self,
         endpoint: &str,
-        body: Option<(B, ContentType)>,
+        body: Option<B>,
     ) -> Result<Box<Read>>
         where
-            B: Into<Body<'a>>,
+            B: Into<Body>,
     {
         self.transport.stream(Method::Put, endpoint, body)
-    }
-
-    fn bufreader_post<'a, B, T>(
-        &'a self,
-        endpoint: &str,
-        body: Option<(B, ContentType)>,
-    ) -> Result<BufIterator<T>>
-    where
-        B: Into<Body<'a>>,
-        T: DeserializeOwned,
-    {
-        self.transport.bufreader(Method::Post, endpoint, body)
     }
 
     fn stream_get<'a>(&self, endpoint: &str) -> Result<Box<Read>> {
         self.transport.stream(
             Method::Get,
             endpoint,
-            None as Option<(&'a str, ContentType)>,
-        )
-    }
-
-    fn bufreader_get<'a, T>(&self, endpoint: &str) -> Result<BufIterator<T>>
-    where
-        T: DeserializeOwned,
-    {
-        self.transport.bufreader(
-            Method::Get,
-            endpoint,
-            None as Option<(&'a str, ContentType)>,
+            None as Option<&'a str>,
         )
     }
 }

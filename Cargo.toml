@@ -16,9 +16,9 @@ ssl = [ "openssl", "hyper-openssl"]
 without-ssl = []
 
 [dependencies]
-byteorder = "1.0.0"
+byteorder = "1.0"
 flate2 = "0.2"
-hyper = "0.10"
+hyper = "0.12"
 hyperlocal = "0.3"
 jed = "0.1"
 log = "0.3"

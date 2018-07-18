@@ -2,135 +2,114 @@
 
 extern crate hyper;
 
-use self::hyper::buffer::BufReader;
-use self::hyper::header::ContentType;
-use self::hyper::status::StatusCode;
+//use hyper::buffer::BufReader;
+use hyper::StatusCode;
 use errors::{ErrorKind, Result};
 
-use hyper::client::response::Response;
-use hyper::client::Body;
+//use super::reader::BufIterator;
+
+use hyper::Response;
+use hyper::Body;
 use hyper::header;
-use hyper::method::Method;
-use hyper::mime;
+use hyper::Method;
 use hyper::Client;
-use hyperlocal::DomainUrl;
-use rustc_serialize::json;
+use hyper::Uri;
+use hyper::client::connect::Connect;
 use serde::de::DeserializeOwned;
 use std::fmt;
 use std::io::Read;
-
-pub fn tar() -> ContentType {
-    ContentType(mime::Mime(
-        mime::TopLevel::Application,
-        mime::SubLevel::Ext(String::from("tar")),
-        vec![],
-    ))
-}
+use hyper::Request;
+use hyper::HeaderMap;
+use std::str::FromStr;
+use transport::Transport::{Tcp, Unix};
+use hyper::client::ResponseFuture;
+use hyper::rt::Future;
 
 /// Transports are types which define the means of communication
 /// with the docker daemon
-pub enum Transport {
+pub enum Transport<T>
+{
     /// A network tcp interface
-    Tcp { client: Client, host: String },
+    Tcp { client: Client<T>, host: String },
     /// A Unix domain socket
-    Unix { client: Client, path: String },
+    Unix { client: Client<T>, path: String },
 }
 
-impl fmt::Debug for Transport {
+impl <T: Connect> fmt::Debug for Transport<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Transport::Tcp { ref host, .. } => write!(f, "Tcp({})", host),
-            Transport::Unix { ref path, .. } => write!(f, "Unix({})", path),
+            Tcp { ref host, .. } => write!(f, "Tcp({})", host),
+            Unix { ref path, .. } => write!(f, "Unix({})", path),
         }
     }
 }
 
-impl Transport {
-    pub fn request<'a, B>(
-        &'a self,
-        method: Method,
-        endpoint: &str,
-        body: Option<(B, ContentType)>,
-    ) -> Result<String>
+impl <T: Connect> Transport<T> {
+    pub fn client(&self) -> Client<T> {
+        match *self {
+            Tcp { ref client, .. } => *client,
+            Unix { ref client, .. } => *client
+        }
+    }
+
+    pub fn response<'a, B>(&'a self, method: Method, endpoint: &str, body: B)
+        -> Result<String>
     where
-        B: Into<Body<'a>>,
+        B: Into<Body>,
     {
         let mut res = self.stream(method, endpoint, body)?;
         let mut body = String::new();
-        let _ = res.read_to_string(&mut body)?;
+        let _ = res.poll()?;
 
         debug!("{} raw response: {}", endpoint, body);
         Ok(body)
     }
 
-    pub fn response<'c, B>(
-        &'c self,
-        method: Method,
-        endpoint: &str,
-        body: Option<(B, ContentType)>,
-    ) -> hyper::Result<hyper::client::Response>
-    where
-        B: Into<Body<'c>>,
+    pub fn build_request<'c, B>(&'c self, method: Method, endpoint: &str, body: B)
+        -> Result<Request<B>>
     {
-        let headers = {
-            let mut headers = header::Headers::new();
-            headers.set(header::Host {
-                hostname: "".to_owned(),
-                port: None,
-            });
-            headers
+        let (client, host) = match *self {
+            Tcp {ref client, ref host} => (client, host),
+            Unix {ref client, ref path} => (client, path)
         };
 
-        let req = match *self {
-            Transport::Tcp {
-                ref client,
-                ref host,
-            } => client.request(method, &format!("{}{}", host, endpoint)[..]),
-            Transport::Unix {
-                ref client,
-                ref path,
-            } => client.request(method, DomainUrl::new(&path, endpoint)),
-        }.headers(headers);
-
-        let embodied = match body {
-            Some((b, c)) => req.header(c).body(b),
-            _ => req,
-        };
-
-        embodied.send()
+        let req = Request::builder()
+            .method(method)
+            .uri(endpoint)
+            .body(body);
     }
 
-    pub fn bufreader<'c, B, T>(
-        &'c self,
-        method: Method,
-        endpoint: &str,
-        body: Option<(B, ContentType)>,
-    ) -> Result<super::reader::BufIterator<T>>
+    /*
+    pub fn bufreader<'c, B, T>(&'c self, method: Method, endpoint: &str, body: Option<B>)
+        -> Result<super::reader::BufIterator<T>>
     where
-        B: Into<Body<'c>>,
+        B: Into<Body>,
         T: DeserializeOwned,
     {
-        let res = self.response(method, endpoint, body)?;
+        let req = self.build_request(method, endpoint, body)?;
 
-        Ok(super::reader::BufIterator::<T>::new(res))
-    }
+        Ok(BufIterator::<T>::new(res))
+    }*/
 
-    pub fn stream<'c, B>(
-        &'c self,
-        method: Method,
-        endpoint: &str,
-        body: Option<(B, ContentType)>,
-    ) -> Result<Box<Read>>
-    where
-        B: Into<Body<'c>>,
+    pub fn stream<'c, B>(&'c self, method: Method, endpoint: &str, body: B)
+        -> Result<ResponseFuture>
+        where
+        B: Into<Body>,
     {
-        let res = self.response(method, endpoint, body)?;
+        let body = match body {
+            () => Body::empty(),
+            a => Body::wrap_stream(Stream)
+        };
 
+        let mut req = self.build_request(method, endpoint, body);
+        Ok(self.client().request(req))
+
+        /*
         match res.status {
-            StatusCode::Ok | StatusCode::Created | StatusCode::SwitchingProtocols => {
-                Ok(Box::new(res))
-            }
-            StatusCode::NoContent => Ok(Box::new(BufReader::new("".as_bytes()))),
+            StatusCode::Ok
+            | StatusCode::Created
+            | StatusCode::SwitchingProtocols => Ok(Box::new(res)),
+            StatusCode::NoContent => Ok(Box::new(hyper::Client::new())),
             // todo: constantize these
             StatusCode::BadRequest
             | StatusCode::NotFound
@@ -138,10 +117,11 @@ impl Transport {
             | StatusCode::Conflict
             | StatusCode::InternalServerError => Err(ErrorKind::HyperFault(res.status).into()),
             _ => unreachable!(),
-        }
+        }*/
     }
 }
 
+/*
 /// Extract the error message content from an HTTP response that
 /// contains a Docker JSON error structure.
 #[allow(dead_code)]
@@ -160,3 +140,4 @@ fn get_error_message(res: &mut Response) -> Option<String> {
         None
     }
 }
+*/
