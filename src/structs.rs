@@ -10,7 +10,7 @@ extern crate serde_json;
 
 
 #[cfg(feature = "ssl")]
-use hyper::net::HttpsConnector;
+use hyper_openssl::HttpsConnector;
 #[cfg(feature = "ssl")]
 use hyper_openssl::OpensslClient;
 #[cfg(feature = "ssl")]
@@ -30,18 +30,20 @@ use errors::ErrorKind as EK;
 pub use errors::Result;
 
 use hyper::Body;
+use hyper::body::Payload;
 use hyper::Method;
 use hyper::{Client, Uri};
+use hyper::rt::Stream;
 use hyperlocal::UnixSocketConnector;
-use serde::de::DeserializeOwned;
 use serde_json::Value;
+use serde_json::StreamDeserializer;
 
 use tarball;
 
 use rep::{
-    Change, Container as ContainerRep, ContainerCreateInfo, ContainerDetails, Event, Exit, History,
+    Change, Container as ContainerRep, ContainerCreateInfo, ContainerDetails, Exit, History,
     Image as ImageRep, ImageDetails, Info, NetworkCreateInfo, NetworkDetails as NetworkInfo,
-    SearchResult, Stats, Status, Top, Version,
+    SearchResult, Status, Top, Version,
 };
 
 use std::borrow::Cow;
@@ -55,12 +57,14 @@ use builder::ContainerArchiveOptions;
 use std::io::Cursor;
 use hyper::client::ResponseFuture;
 use hyper::Request;
+use hyper::rt::Future;
 
 /// Entrypoint interface for communicating with docker daemon
 pub struct Docker<T> {
     transport: Transport<T>,
 }
 
+/*
 /// Interface for accessing and manipulating a named docker image
 pub struct Image<'a, 'b, T: 'a> {
     docker: &'a Docker<T>,
@@ -125,12 +129,14 @@ impl<'a, 'b, T> Image<'a, 'b, T> {
     }
 
     /// Export this image to a tarball
-    pub fn export(&self) -> Result<Box<Read>> {
+    pub fn export(&self) -> Box<ResponseFuture> {
         self.docker
             .stream_get(&format!("/images/{}/get", self.name)[..])
     }
 }
+*/
 
+/*
 /// Interface for docker images
 pub struct Images<'a, T: 'a> {
     docker: &'a Docker<T>,
@@ -187,7 +193,7 @@ impl<'a, T> Images<'a, T> {
     }
 
     /// Pull and create a new docker images from an existing image
-    pub fn pull(&self, opts: &PullOptions) -> Result<ResponseFuture> {
+    pub fn pull(&self, opts: &PullOptions) -> Box<ResponseFuture> {
         let mut path = vec!["/images/create".to_owned()];
 
         if let Some(query) = opts.serialize() {
@@ -200,7 +206,7 @@ impl<'a, T> Images<'a, T> {
 
     /// exports a collection of named images,
     /// either by name, name:tag, or image id, into a tarball
-    pub fn export(&self, names: Vec<&str>) -> Result<Box<Read>> {
+    pub fn export(&self, names: Vec<&str>) -> Box<ResponseFuture> {
         let params = names
             .iter()
             .map(|n| ("names", *n))
@@ -216,7 +222,9 @@ impl<'a, T> Images<'a, T> {
     //  self.docker.post
     // }
 }
+*/
 
+/*
 /// Interface for accessing and manipulating a docker container
 pub struct Container<'a, 'b, T: 'a> {
     docker: &'a Docker<T>,
@@ -263,7 +271,7 @@ impl<'a, 'b, T> Container<'a, 'b, T> {
     }
 
     /// Returns a stream of logs emitted but the container instance
-    pub fn logs(&self, opts: &LogsOptions) -> Result<Box<Read>> {
+    pub fn logs(&self, opts: &LogsOptions) -> Box<ResponseFuture> {
         let mut path = vec![format!("/containers/{}/logs", self.id)];
 
         if let Some(query) = opts.serialize() {
@@ -283,13 +291,13 @@ impl<'a, 'b, T> Container<'a, 'b, T> {
     }
 
     /// Exports the current docker container into a tarball
-    pub fn export(&self) -> Result<Box<Read>> {
+    pub fn export(&self) -> Box<ResponseFuture> {
         self.docker
             .stream_get(&format!("/containers/{}/export", self.id)[..])
     }
 
     /// Returns a stream of stats specific to this container instance
-    pub fn stats(&self) -> Result<ResponseFuture> {
+    pub fn stats(&self) -> Box<ResponseFuture> {
         self.docker
             .bufreader_get(&format!("/containers/{}/stats", self.id)[..])
     }
@@ -457,7 +465,9 @@ impl<'a, 'b, T> Container<'a, 'b, T> {
 
     // todo attach, attach/ws, copy, archive
 }
+*/
 
+/*
 /// Interface for docker containers
 pub struct Containers<'a, T: 'a> {
     docker: &'a Docker<T>,
@@ -503,6 +513,7 @@ impl<'a, T> Containers<'a, T> {
         ::serde_json::from_str::<ContainerCreateInfo>(&raw).map_err(Error::from)
     }
 }
+*/
 
 /// Interface for docker network
 pub struct Networks<'a, T: 'a> {
@@ -516,15 +527,28 @@ impl<'a, T> Networks<'a, T> {
     }
 
     /// List the docker networks on the current docker host
-    pub fn list(&self, opts: &NetworkListOptions) -> Result<Vec<NetworkInfo>> {
+    pub fn list(&self, opts: &NetworkListOptions)
+            -> Box<Future<Item=Vec<NetworkInfo>, Error=Error>> {
         let mut path = vec!["/networks".to_owned()];
 
         if let Some(query) = opts.serialize() {
             path.push(query);
         }
 
-        let raw = self.docker.get(&path.join("?"))?;
-        ::serde_json::from_str::<Vec<NetworkInfo>>(&raw).map_err(Error::from)
+        let res = self.docker
+            .get(&path.join("?"))
+            .and_then(|response |
+                          response.into_body().concat2()
+            )
+            .and_then(|body | {
+                let vec = body.iter().cloned().collect();
+                let stringify = String::from_utf8(vec).map_err(Error::from)?;
+                println!("{}", stringify);
+                ::serde_json::from_str::<Vec<NetworkInfo>>(&stringify)
+                    .map_err(Error::from)
+            });
+
+        Box::new(res)
     }
 
     /// Returns a reference to a set of operations available to a specific network instance
@@ -532,16 +556,16 @@ impl<'a, T> Networks<'a, T> {
         Network::new(self.docker, id)
     }
 
-    pub fn create(&'a self, opts: &NetworkCreateOptions) -> Result<NetworkCreateInfo> {
-        let data = opts.serialize()?;
+    pub fn create(&'a self, opts: &NetworkCreateOptions)
+            -> Box<Future<Item=NetworkCreateInfo, Error=Error>> {
+        let data = opts.serialize();
         let mut bytes = data.as_bytes();
         let path = vec!["/networks/create".to_owned()];
 
-        let raw = self
-            .docker
-            .post(&path.join("?"), Some(&mut bytes))?;
-
-        ::serde_json::from_str::<NetworkCreateInfo>(&raw).map_err(Error::from)
+        self.docker.post(&path.join("?"), &mut bytes)
+            .and_then(|response|
+                ::serde_json::from_reader::<NetworkCreateInfo>(
+                    response.into_body().poll_data()).map_err(Error::from))
     }
 }
 
@@ -569,37 +593,38 @@ impl<'a, 'b, T> Network<'a, 'b, T> {
     }
 
     /// Inspects the current docker network instance's details
-    pub fn inspect(&self) -> Result<NetworkInfo> {
-        let raw = self.docker.get(&format!("/networks/{}", self.id)[..])?;
-        ::serde_json::from_str::<NetworkInfo>(&raw).map_err(Error::from)
+    pub fn inspect(&self) -> Box<Future<Item=NetworkInfo, Error=Error>> {
+        self.docker.get(&format!("/networks/{}", self.id)[..])?
+            .and_then(|response|
+                ::serde_json::from_str::<NetworkInfo>(response?).map_err(Error::from))
     }
 
     /// Delete the network instance
-    pub fn delete(&self) -> Result<()> {
-        self.docker
-            .delete(&format!("/networks/{}", self.id)[..])
-            .map(|_| ())
+    pub fn delete(&self) -> Box<Future<Item=(), Error=Error>> {
+        self.docker.delete(&format!("/networks/{}", self.id)[..])?
+            .and_then(|_| () )
     }
 
     /// Connect container to network
-    pub fn connect(&self, opts: &ContainerConnectionOptions) -> Result<()> {
+    pub fn connect(&self, opts: &ContainerConnectionOptions)
+            -> Box<Future<Item=(), Error=Error>> {
         self.do_connection("connect", opts)
     }
 
     /// Disconnect container to network
-    pub fn disconnect(&self, opts: &ContainerConnectionOptions) -> Result<()> {
+    pub fn disconnect(&self, opts: &ContainerConnectionOptions)
+            -> Box<Future<Item=(), Error=Error>> {
         self.do_connection("disconnect", opts)
     }
 
-    fn do_connection(&self, segment: &str, opts: &ContainerConnectionOptions) -> Result<()> {
+    fn do_connection(&self, segment: &str, opts: &ContainerConnectionOptions)
+            -> Box<Future<Item=(), Error=Error>> {
         let data = opts.serialize()?;
         let mut bytes = data.as_bytes();
 
         let s = &format!("/networks/{}/{}", self.id, segment)[..];
 
-        self.docker
-            .post(s, Some(&mut bytes))
-            .map(|_| ())
+        self.get(s)?.and_then(|_| () )
     }
 }
 
@@ -626,8 +651,8 @@ impl <T> Docker<T> {
             }),
 
             _ => {
+                let client = Client::builder();
                 #[cfg(not(feature = "ssl"))]
-                let client = Client::new();
 
                 #[cfg(feature = "ssl")]
                 let client = if let Some(ref certs) = env::var("DOCKER_CERT_PATH").ok() {
@@ -677,6 +702,7 @@ impl <T> Docker<T> {
         }
     }
 
+    /*
     /// Exports an interface for interacting with docker images
     pub fn images<'a>(&'a self) -> Images<T> {
         Images::new(self)
@@ -686,88 +712,92 @@ impl <T> Docker<T> {
     pub fn containers<'a>(&'a self) -> Containers<T> {
         Containers::new(self)
     }
+    */
 
     pub fn networks<'a>(&'a self) -> Networks<T> {
         Networks::new(self)
     }
 
     /// Returns version information associated with the docker daemon
-    pub fn version(&self) -> Result<Version> {
-        let raw = self.get("/version")?;
-        ::serde_json::from_str::<Version>(&raw).map_err(Error::from)
+    pub fn version(&self) -> Box<Future<Item=Version, Error=Error>> {
+        self.get("/version")?
+            .and_then(|response|
+                ::serde_json::from_str::<Version>(response.into_body()?)
+            )
     }
 
     /// Returns information associated with the docker daemon
-    pub fn info(&self) -> Result<Info> {
-        let raw = self.get("/info")?;
-        ::serde_json::from_str::<Info>(&raw).map_err(Error::from)
+    pub fn info(&self) -> Box<Future<Item=Info, Error=Error>> {
+        self.get("/info")?
+            .and_then(|response|
+                ::serde_json::from_str::<Info>(response.into_body()?)
+            )
     }
 
     /// Returns a simple ping response indicating the docker daemon is accessible
-    pub fn ping(&self) -> Result<String> {
-        self.get("/_ping")
+    pub fn ping(&self) -> Box<Future<Item=String, Error=Error>> {
+        self.get("/ping")?
+            .and_then(|response|
+                ::serde_json::from_str::<String>(response.into_body()?)
+            )
     }
 
-    /// Returns an interator over streamed docker events
-    pub fn events(&self, opts: &EventsOptions) -> Result<ResponseFuture> {
+    //noinspection Annotator
+    //noinspection ALL
+    /// Returns an iterator over streamed docker events
+    pub fn events(&self, opts: &EventsOptions) -> Box<Future<Item=String, Error=Error>> {
         let mut path = vec!["/events".to_owned()];
 
         if let Some(query) = opts.serialize() {
             path.push(query);
         }
 
-        self.bufreader_get(&path.join("?")[..])
+        self.get(&path.join("?")[..])
+            .and_then(|response|
+                ::serde_json::from_reader::<String>(response.into_stream()?)
+            )
     }
 
-    fn get<'a>(&self, endpoint: &str) -> Result<Request<T>> {
-        self.transport.build_request(
-            Method::Get,
-            endpoint,
-            None as Option<&'a str>,
-        )
+    fn get<'a>(&self, endpoint: &str) -> Box<ResponseFuture> {
+        self.transport.build_response(
+            Method::Get, endpoint, ())
     }
 
-    fn post<'a, B>(&'a self, endpoint: &str, body: Option<B>) -> Result<String>
+    fn post<'a, B>(&'a self, endpoint: &str, body: Option<B>) -> Box<ResponseFuture>
     where
         B: Into<Body>,
     {
-        self.transport.build_request(Method::Post, endpoint, body)
+        self.transport.build_response(Method::Post, endpoint, body)
     }
 
-    fn delete<'a>(&self, endpoint: &str) -> Result<ResponseFuture> {
-        let req = self.transport.build_request(
-            Method::Delete,
-            endpoint,
-            None as Option<&'a str>,
-        ).unwrap();
-
-
+    fn delete<'a>(&self, endpoint: &str) -> Box<ResponseFuture> {
+        let req = self.transport.
+            build_response(Method::Delete, endpoint, ()).unwrap();
     }
 
-    fn stream_post<'a, B>(
-        &'a self,
+    fn stream_post<'a, B>(&'a self,
         endpoint: &str,
         body: Option<B>,
-    ) -> Result<Box<Read>>
+    ) -> Box<ResponseFuture>
     where
         B: Into<Body>,
     {
-        self.transport.stream(Method::Post, endpoint, body)
+        self.transport.build_response(Method::Post, endpoint, body)
     }
 
     fn stream_put<'a, B>(
         &'a self,
         endpoint: &str,
         body: Option<B>,
-    ) -> Result<Box<Read>>
+    ) -> Box<ResponseFuture>
         where
             B: Into<Body>,
     {
-        self.transport.stream(Method::Put, endpoint, body)
+        self.transport.build_response(Method::Put, endpoint, body)
     }
 
-    fn stream_get<'a>(&self, endpoint: &str) -> Result<Box<Read>> {
-        self.transport.stream(
+    fn stream_get<'a>(&self, endpoint: &str) -> Box<ResponseFuture> {
+        self.transport.build_response(
             Method::Get,
             endpoint,
             None as Option<&'a str>,

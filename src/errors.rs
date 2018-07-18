@@ -16,6 +16,11 @@ error_chain! {
     }
 
     errors {
+        Message(msg: String) {
+            description("Message")
+                display("{}", msg)
+        }
+
         HyperFault(code: StatusCode) {
             description("HyperFault")
                 display("{}", code)

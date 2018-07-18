@@ -3,27 +3,23 @@
 extern crate hyper;
 
 //use hyper::buffer::BufReader;
-use hyper::StatusCode;
 use errors::{ErrorKind, Result};
 
 //use super::reader::BufIterator;
 
-use hyper::Response;
 use hyper::Body;
-use hyper::header;
 use hyper::Method;
 use hyper::Client;
 use hyper::Uri;
 use hyper::client::connect::Connect;
-use serde::de::DeserializeOwned;
 use std::fmt;
-use std::io::Read;
 use hyper::Request;
-use hyper::HeaderMap;
-use std::str::FromStr;
 use transport::Transport::{Tcp, Unix};
 use hyper::client::ResponseFuture;
 use hyper::rt::Future;
+use std::convert::Into;
+
+use errors::ErrorKind as EK;
 
 /// Transports are types which define the means of communication
 /// with the docker daemon
@@ -44,7 +40,7 @@ impl <T: Connect> fmt::Debug for Transport<T> {
     }
 }
 
-impl <T: Connect> Transport<T> {
+impl <T: Connect + 'static> Transport<T> {
     pub fn client(&self) -> Client<T> {
         match *self {
             Tcp { ref client, .. } => *client,
@@ -52,6 +48,7 @@ impl <T: Connect> Transport<T> {
         }
     }
 
+    /*
     pub fn response<'a, B>(&'a self, method: Method, endpoint: &str, body: B)
         -> Result<String>
     where
@@ -64,19 +61,21 @@ impl <T: Connect> Transport<T> {
         debug!("{} raw response: {}", endpoint, body);
         Ok(body)
     }
+    */
 
-    pub fn build_request<'c, B>(&'c self, method: Method, endpoint: &str, body: B)
-        -> Result<Request<B>>
+    pub fn build_request<'c>(&'c self, method: Method, endpoint: &str, body: Body)
+        -> Request<Body>
     {
-        let (client, host) = match *self {
-            Tcp {ref client, ref host} => (client, host),
-            Unix {ref client, ref path} => (client, path)
-        };
+        let uri: Uri = match *self {
+            Tcp { ref client, ref host } => format!("{}{}", host, endpoint),
+            Unix { ref client, ref path } => format!("{}{}", path, endpoint)
+        }.parse().unwrap();
 
-        let req = Request::builder()
+        Request::builder()
             .method(method)
-            .uri(endpoint)
-            .body(body);
+            .uri(uri)
+            .body(body)
+            .unwrap()
     }
 
     /*
@@ -91,18 +90,14 @@ impl <T: Connect> Transport<T> {
         Ok(BufIterator::<T>::new(res))
     }*/
 
-    pub fn stream<'c, B>(&'c self, method: Method, endpoint: &str, body: B)
-        -> Result<ResponseFuture>
+    pub fn build_response<'c, B>(&'c self, method: Method, endpoint: &str, body: B)
+        -> Box<ResponseFuture>
         where
         B: Into<Body>,
     {
-        let body = match body {
-            () => Body::empty(),
-            a => Body::wrap_stream(Stream)
-        };
+        let mut req = self.build_request(method, endpoint, body.into());
+        Box::new(self.client().request(req))
 
-        let mut req = self.build_request(method, endpoint, body);
-        Ok(self.client().request(req))
 
         /*
         match res.status {

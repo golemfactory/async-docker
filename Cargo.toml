@@ -29,8 +29,9 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json   = "1.0"
 error-chain = "0.12"
+futures = "0.1"
 
-hyper-openssl = { version = "0.2", optional = true }
+hyper-openssl = { version = "0.6", optional = true }
 openssl = { version = "0.9", optional = true }
 
 [dev-dependencies]

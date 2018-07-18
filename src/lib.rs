@@ -32,13 +32,13 @@ extern crate error_chain;
 
 extern crate byteorder;
 extern crate flate2;
-extern crate hyper;
 extern crate hyperlocal;
 extern crate rustc_serialize;
 extern crate tar;
 extern crate url;
 extern crate serde;
 extern crate serde_json;
+extern crate hyper;
 
 pub mod builder;
 pub mod errors;
