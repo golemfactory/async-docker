@@ -1,6 +1,8 @@
 extern crate byteorder;
 extern crate flate2;
 extern crate hyper;
+
+#[cfg(target_os = "linux")]
 extern crate hyperlocal;
 extern crate rustc_serialize;
 extern crate tar;
@@ -24,6 +26,7 @@ use std::path::Path;
 
 pub use builder::*;
 
+pub use std::marker::Sized;
 pub use errors::Error;
 use errors::ErrorKind as EK;
 /// Represents the result of all docker operations
@@ -32,8 +35,9 @@ pub use errors::Result;
 use hyper::Body;
 use hyper::body::Payload;
 use hyper::Method;
-use hyper::{Client, Uri};
+pub use hyper::{Client, Uri};
 use hyper::rt::Stream;
+#[cfg(target_os = "linux")]
 use hyperlocal::UnixSocketConnector;
 use serde_json::Value;
 use serde_json::StreamDeserializer;
@@ -46,6 +50,7 @@ use rep::{
     SearchResult, Status, Top, Version,
 };
 
+use std::str;
 use std::borrow::Cow;
 use std::env;
 use std::io::Read;
@@ -58,11 +63,11 @@ use std::io::Cursor;
 use hyper::client::ResponseFuture;
 use hyper::Request;
 use hyper::rt::Future;
-
-/// Entrypoint interface for communicating with docker daemon
-pub struct Docker<T> {
-    transport: Transport<T>,
-}
+use hyper::client::connect::Connect;
+use hyper::client::HttpConnector;
+use http::uri::Parts;
+use http::uri::PathAndQuery;
+use std::str::FromStr;
 
 /*
 /// Interface for accessing and manipulating a named docker image
@@ -515,6 +520,7 @@ impl<'a, T> Containers<'a, T> {
 }
 */
 
+/*
 /// Interface for docker network
 pub struct Networks<'a, T: 'a> {
     docker: &'a Docker<T>,
@@ -627,79 +633,124 @@ impl<'a, 'b, T> Network<'a, 'b, T> {
         self.get(s)?.and_then(|_| () )
     }
 }
+*/
 
-// https://docs.docker.com/reference/api/docker_remote_api_v1.17/
-impl <T> Docker<T> {
-    /// constructs a new Docker instance for a docker host listening at a url specified by an env var `DOCKER_HOST`,
-    /// falling back on unix:///var/run/docker.sock
-    pub fn new(host: Option<String>) -> Result<Docker<T>> {
-        host
-            .ok_or(env::var("DOCKER_HOST"))
-            .or_else(|_| Ok("unix:///var/run/docker.sock".to_owned()))
-            .and_then(|h| Uri::parse(Cursor::from(&h)).map_err(Error::from))
-            .and_then(Docker::host)
+pub struct Docker<C>
+    where
+        C: Connect + 'static
+{
+    client: Client<C>,
+    host: Uri,
+}
+
+pub type TcpDocker = Docker<HttpConnector>;
+
+impl DockerTrait for TcpDocker {
+    type Connector = HttpConnector;
+
+    fn new(host: Uri) -> Result<Self> {
+        Ok(TcpDocker {
+            client: Client::new(),
+            host
+        })
     }
 
-    /// constructs a new Docker instance for docker host listening at the given host url
-    pub fn host(host: Uri) -> Result<Docker<T>> {
-        match host.scheme_part().map(|s| s.as_str().as_ref()) {
-            Some("unix") => Ok(Docker {
-                transport: Transport::Unix {
-                    client: Client::with_connector(UnixSocketConnector),
-                    path: host.path().to_owned(),
-                },
-            }),
+    fn host(&self) -> &Uri {
+        &self.host
+    }
 
-            _ => {
-                let client = Client::builder();
-                #[cfg(not(feature = "ssl"))]
+    fn client(&self) -> &Client<Self::Connector> {
+        &self.client
+    }
+}
 
-                #[cfg(feature = "ssl")]
-                let client = if let Some(ref certs) = env::var("DOCKER_CERT_PATH").ok() {
-                    // https://github.com/hyperium/hyper/blob/master/src/net.rs#L427-L428
-                    let mut connector = SslConnectorBuilder::new(SslMethod::tls())?;
+#[cfg(feature = "ssl")]
+pub type TcpSSLDocker = Docker<HttpsConnector<OpensslClient>>;
 
-                    connector.set_cipher_list("DEFAULT")?;
+#[cfg(feature = "ssl")]
+impl DockerTrait for TcpSSLDocker {
+    type Connector = HttpsConnector<OpensslClient>;
 
-                    let cert = &format!("{}/cert.pem", certs);
-                    let key = &format!("{}/key.pem", certs);
+    fn new(host: Uri) -> Result<Self> {
+        let Some(certs) = env::var("DOCKER_CERT_PATH").ok()?;
 
-                    connector.set_certificate_file(&Path::new(cert), X509_FILETYPE_PEM)?;
+        let cert = &format!("{}/cert.pem", certs);
+        let key = &format!("{}/key.pem", certs);
 
-                    connector.set_private_key_file(&Path::new(key), X509_FILETYPE_PEM)?;
+        // https://github.com/hyperium/hyper/blob/master/src/net.rs#L427-L428
+        let mut connector = SslConnectorBuilder::new(SslMethod::tls())?;
 
-                    if let Some(_) = env::var("DOCKER_TLS_VERIFY").ok() {
-                        let ca = &format!("{}/ca.pem", certs);
-                        connector.set_ca_file(&Path::new(ca))?;
-                    }
+        connector.set_cipher_list("DEFAULT")?;
+        connector.set_certificate_file(&Path::new(cert), X509_FILETYPE_PEM)?;
+        connector.set_private_key_file(&Path::new(key), X509_FILETYPE_PEM)?;
 
-                    let ssl = OpensslClient::from(connector.build());
-                    Client::with_connector(HttpsConnector::new(ssl))
-                } else {
-                    Client::new()
-                };
-
-                let hoststr = host
-                    .host_str()
-                    .ok_or_else(|| EK::NoHostString)
-                    .map_err(Error::from_kind)?
-                    .to_owned();
-
-                let port = host
-                    .port_or_known_default()
-                    .ok_or_else(|| EK::NoPort)
-                    .map_err(Error::from_kind)?
-                    .to_owned();
-
-                let host = format!("{}://{}:{}", host.scheme(), hoststr, port);
-
-                let d = Docker {
-                    transport: Transport::Tcp { client, host },
-                };
-
-                Ok(d)
-            }
+        if let Some(_) = env::var("DOCKER_TLS_VERIFY").ok() {
+            let ca = &format!("{}/ca.pem", certs);
+            connector.set_ca_file(&Path::new(ca))?;
         }
+
+        let ssl = OpensslClient::from(connector.build());
+        Client::with_connector(HttpsConnector::new(ssl))
+    }
+
+    fn client(&self) -> &Client<Self::Connector> {
+        &self.client
+    }
+
+    fn host(&self) -> &Uri {
+        &self.host
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub type UnixDocker =  Docker<UnixSocketConnector>;
+
+#[cfg(target_os = "linux")]
+impl DockerTrait for UnixDocker {
+    type Connector = UnixSocketConnector;
+
+    fn new(host: Uri) -> Result<Self> {
+        Ok(UnixDocker {
+            client: builder().build_http(),
+            host
+        })
+    }
+
+    fn host(&self) -> &Uri {
+        &self.host
+    }
+
+    fn client(&self) -> &Client<Self::Connector> {
+        &self.client
+    }
+}
+
+/// Entrypoint interface for communicating with docker daemon
+pub trait DockerTrait
+    where
+        Self: Sized
+{
+    type Connector : Connect + 'static;
+
+    /// constructs a new Docker instance for a docker host listening at a url specified by an env var `DOCKER_HOST`,
+    /// falling back on unix:///var/run/docker.sock
+
+
+    /// constructs a new Docker instance for docker host listening at the given host url
+    fn new(host: Uri) -> Result<Self>;
+
+    fn host(&self) -> &Uri;
+
+    fn client(&self) -> &Client<Self::Connector>;
+
+    fn compose_uri(&self, path: Option<&str>, query: Option<&str>) -> Result<Uri> {
+        let mut parts = self.host().clone().into_parts();
+        let path_query = PathAndQuery::from_str(
+            format!("{}{}", path.unwrap_or(""), query.unwrap_or("")).as_ref())?;
+
+        parts.path_and_query = Some(path_query);
+
+        Ok(Uri::from_parts(parts)?)
     }
 
     /*
@@ -714,6 +765,7 @@ impl <T> Docker<T> {
     }
     */
 
+    /*
     pub fn networks<'a>(&'a self) -> Networks<T> {
         Networks::new(self)
     }
@@ -725,15 +777,24 @@ impl <T> Docker<T> {
                 ::serde_json::from_str::<Version>(response.into_body()?)
             )
     }
-
+*/
     /// Returns information associated with the docker daemon
-    pub fn info(&self) -> Box<Future<Item=Info, Error=Error>> {
-        self.get("/info")?
-            .and_then(|response|
-                ::serde_json::from_str::<Info>(response.into_body()?)
-            )
-    }
+    fn info(&self) -> Box<Future<Item=Info, Error=Error>> {
+        let path = Some("/info");
+        let query = None;
 
+        Box::new(self.get(path, query)
+            .and_then(|response|
+                response.into_body().concat2())
+            .map_err(Error::from)
+            .and_then(|chunk| {
+                let stringify = str::from_utf8(&chunk)?;
+                ::serde_json::from_str::<Info>(stringify)
+                    .map_err(Error::from)
+            })
+        )
+    }
+/*
     /// Returns a simple ping response indicating the docker daemon is accessible
     pub fn ping(&self) -> Box<Future<Item=String, Error=Error>> {
         self.get("/ping")?
@@ -741,7 +802,8 @@ impl <T> Docker<T> {
                 ::serde_json::from_str::<String>(response.into_body()?)
             )
     }
-
+*/
+    /*
     //noinspection Annotator
     //noinspection ALL
     /// Returns an iterator over streamed docker events
@@ -757,12 +819,17 @@ impl <T> Docker<T> {
                 ::serde_json::from_reader::<String>(response.into_stream()?)
             )
     }
+    */
 
-    fn get<'a>(&self, endpoint: &str) -> Box<ResponseFuture> {
-        self.transport.build_response(
-            Method::Get, endpoint, ())
+    fn get(&self, path: Option<&str>, query: Option<&str>) -> ResponseFuture
+    {
+        let uri = self.compose_uri(path, query).unwrap();
+
+        let request =
+            ::transport::build_request(Method::GET, uri, Body::empty()).unwrap();
+        ::transport::build_response(&self.client(), request)
     }
-
+/*
     fn post<'a, B>(&'a self, endpoint: &str, body: Option<B>) -> Box<ResponseFuture>
     where
         B: Into<Body>,
@@ -803,4 +870,5 @@ impl <T> Docker<T> {
             None as Option<&'a str>,
         )
     }
+*/
 }

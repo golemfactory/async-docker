@@ -13,6 +13,10 @@ error_chain! {
         Hyper(::hyper::Error);
         OpenSSL(::openssl::error::ErrorStack) #[cfg(feature = "ssl")];
         SerdeJsonError(::serde_json::error::Error);
+        InvalidUri(::http::uri::InvalidUri);
+        Http(::http::Error);
+        Utf8Error(::std::str::Utf8Error);
+        InvalidUriParts(::http::uri::InvalidUriParts);
     }
 
     errors {

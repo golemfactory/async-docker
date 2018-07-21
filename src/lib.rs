@@ -22,6 +22,9 @@ extern crate hyper_openssl;
 #[cfg(feature = "ssl")]
 extern crate openssl;
 
+#[cfg(target_os = "linux")]
+extern crate hyperlocal;
+
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -32,13 +35,13 @@ extern crate error_chain;
 
 extern crate byteorder;
 extern crate flate2;
-extern crate hyperlocal;
 extern crate rustc_serialize;
 extern crate tar;
 extern crate url;
 extern crate serde;
 extern crate serde_json;
 extern crate hyper;
+extern crate http;
 
 pub mod builder;
 pub mod errors;

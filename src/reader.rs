@@ -2,7 +2,7 @@
 //!
 //! Source of code without generic types:
 //! https://github.com/faradayio/boondock/blob/master/src/stats.rs
-
+/*
 use errors::*;
 use serde::de::DeserializeOwned;
 use serde_json;
@@ -11,8 +11,9 @@ use std::io::BufReader;
 use hyper::Response;
 use std::iter;
 use hyper::Body;
-/*
+*/
 
+/*
 pub struct BufIterator<T: DeserializeOwned> {
     buf: BufReader<Body>,
     _phantom: PhantomData<T>,

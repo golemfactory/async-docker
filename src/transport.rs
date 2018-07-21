@@ -20,101 +20,95 @@ use hyper::rt::Future;
 use std::convert::Into;
 
 use errors::ErrorKind as EK;
+use hyper::client::HttpConnector;
+use errors::Error;
 
 /// Transports are types which define the means of communication
 /// with the docker daemon
 pub enum Transport<T>
 {
     /// A network tcp interface
-    Tcp { client: Client<T>, host: String },
+    Tcp { client: Client<HttpConnector>, uri: Uri },
     /// A Unix domain socket
-    Unix { client: Client<T>, path: String },
+    Unix { client: Client<T>, uri: Uri },
 }
 
 impl <T: Connect> fmt::Debug for Transport<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Tcp { ref host, .. } => write!(f, "Tcp({})", host),
-            Unix { ref path, .. } => write!(f, "Unix({})", path),
+            Tcp { ref uri, .. } => write!(f, "Tcp({})", uri),
+            Unix { ref uri, .. } => write!(f, "Unix({})", uri),
         }
     }
 }
 
-impl <T: Connect + 'static> Transport<T> {
-    pub fn client(&self) -> Client<T> {
-        match *self {
-            Tcp { ref client, .. } => *client,
-            Unix { ref client, .. } => *client
-        }
-    }
 
-    /*
-    pub fn response<'a, B>(&'a self, method: Method, endpoint: &str, body: B)
-        -> Result<String>
+/*
+pub fn response<'a, B>(&'a self, method: Method, endpoint: &str, body: B)
+    -> Result<String>
+where
+    B: Into<Body>,
+{
+    let mut res = self.stream(method, endpoint, body)?;
+    let mut body = String::new();
+    let _ = res.poll()?;
+
+    debug!("{} raw response: {}", endpoint, body);
+    Ok(body)
+}
+*/
+
+pub fn build_request<B>(method: Method, uri: Uri, body: B)
+    -> Result<Request<Body>>
     where
         B: Into<Body>,
-    {
-        let mut res = self.stream(method, endpoint, body)?;
-        let mut body = String::new();
-        let _ = res.poll()?;
+{
+    let body: Body = body.into();
 
-        debug!("{} raw response: {}", endpoint, body);
-        Ok(body)
-    }
-    */
+    Request::builder()
+        .method(method)
+        .uri(uri)
+        .body(body)
+        .map_err(Error::from)
+}
 
-    pub fn build_request<'c>(&'c self, method: Method, endpoint: &str, body: Body)
-        -> Request<Body>
-    {
-        let uri: Uri = match *self {
-            Tcp { ref client, ref host } => format!("{}{}", host, endpoint),
-            Unix { ref client, ref path } => format!("{}{}", path, endpoint)
-        }.parse().unwrap();
+/*
+pub fn bufreader<'c, B, T>(&'c self, method: Method, endpoint: &str, body: Option<B>)
+    -> Result<super::reader::BufIterator<T>>
+where
+    B: Into<Body>,
+    T: DeserializeOwned,
+{
+    let req = self.build_request(method, endpoint, body)?;
 
-        Request::builder()
-            .method(method)
-            .uri(uri)
-            .body(body)
-            .unwrap()
-    }
+    Ok(BufIterator::<T>::new(res))
+}*/
+
+pub fn build_response<T>(client: &Client<T>, request: Request<Body>)
+    -> ResponseFuture
+    where
+        T: Connect + 'static
+{
+    client.request(request)
+}
 
     /*
-    pub fn bufreader<'c, B, T>(&'c self, method: Method, endpoint: &str, body: Option<B>)
-        -> Result<super::reader::BufIterator<T>>
-    where
-        B: Into<Body>,
-        T: DeserializeOwned,
-    {
-        let req = self.build_request(method, endpoint, body)?;
-
-        Ok(BufIterator::<T>::new(res))
+    match res.status {
+        StatusCode::Ok
+        | StatusCode::Created
+        | StatusCode::SwitchingProtocols => Ok(Box::new(res)),
+        StatusCode::NoContent => Ok(Box::new(hyper::Client::new())),
+        // todo: constantize these
+        StatusCode::BadRequest
+        | StatusCode::NotFound
+        | StatusCode::NotAcceptable
+        | StatusCode::Conflict
+        | StatusCode::InternalServerError => Err(ErrorKind::HyperFault(res.status).into()),
+        _ => unreachable!(),
     }*/
 
-    pub fn build_response<'c, B>(&'c self, method: Method, endpoint: &str, body: B)
-        -> Box<ResponseFuture>
-        where
-        B: Into<Body>,
-    {
-        let mut req = self.build_request(method, endpoint, body.into());
-        Box::new(self.client().request(req))
 
 
-        /*
-        match res.status {
-            StatusCode::Ok
-            | StatusCode::Created
-            | StatusCode::SwitchingProtocols => Ok(Box::new(res)),
-            StatusCode::NoContent => Ok(Box::new(hyper::Client::new())),
-            // todo: constantize these
-            StatusCode::BadRequest
-            | StatusCode::NotFound
-            | StatusCode::NotAcceptable
-            | StatusCode::Conflict
-            | StatusCode::InternalServerError => Err(ErrorKind::HyperFault(res.status).into()),
-            _ => unreachable!(),
-        }*/
-    }
-}
 
 /*
 /// Extract the error message content from an HTTP response that

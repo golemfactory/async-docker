@@ -11,15 +11,15 @@ keywords = ["docker", "unix", "containers", "hyper", "ship"]
 license = "MIT"
 
 [features]
-default = ["without-ssl"]
+default = []
 ssl = [ "openssl", "hyper-openssl"]
-without-ssl = []
 
 [dependencies]
 byteorder = "1.0"
 flate2 = "0.2"
 hyper = "0.12"
-hyperlocal = "0.3"
+
+
 jed = "0.1"
 log = "0.3"
 rustc-serialize = "0.3"
@@ -30,9 +30,12 @@ serde_derive = "1.0"
 serde_json   = "1.0"
 error-chain = "0.12"
 futures = "0.1"
+http = "0.1"
 
 hyper-openssl = { version = "0.6", optional = true }
 openssl = { version = "0.9", optional = true }
+
+hyperlocal = { version = "0.3", optional = true }
 
 [dev-dependencies]
 env_logger = "0.4.0"
