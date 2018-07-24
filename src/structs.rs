@@ -79,6 +79,7 @@ use futures::Join;
 use std::io::Sink;
 use std::path::Path;
 use std::path::PathBuf;
+use http::uri::Authority;
 
 
 /*
@@ -731,7 +732,7 @@ impl Connect for UnixConnector {
     type Future = Box<Future<Item=(UnixStream, Connected), Error=io::Error> + Send>;
 
     fn connect(&self, dst: Destination) -> Self::Future {
-        if dst.scheme() != "unix" {
+        if dst.scheme() != "http" {
             return Box::new(future::err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 format!("Invalid uri {:?}", dst),
@@ -740,7 +741,17 @@ impl Connect for UnixConnector {
         println!(">>>> {:?}", &self.path);
         println!(">>>> {:?}", &self.path);
         let connected = future::ok(Connected::new());
-        Box::new(UnixStream::connect(&self.path.as_path()).join(connected))
+        UnixStream::connect(&self.path.as_path());
+        println!(">>>> {:?}", &self.path);
+
+
+        let unix = UnixStream::connect(&self.path.as_path());
+        println!("<><><><>");
+        let join = unix.join(connected);
+        println!("<><><><>");
+
+
+        Box::new(join)
     }
 }
 
@@ -757,7 +768,11 @@ impl DockerTrait for UnixDocker {
 
     fn new(host: Uri) -> Result<Self> {
         let path = format!("/{}{}", host.authority().unwrap(), host.path());
-        let host = "http://v1.37/".parse().unwrap();
+        let mut parts = host.clone().into_parts();
+        parts.authority = Some(Authority::from_str("v1.37").unwrap());
+        parts.scheme = Some(Scheme::from_str("http").unwrap());
+        let host = Uri::from_parts(parts).unwrap();
+
         Ok(UnixDocker {
             client: Client::builder().build(
                 UnixConnector {
@@ -804,9 +819,10 @@ pub trait DockerTrait
             ).as_ref())?;
 
         parts.path_and_query = Some(path_query);
-        println!("{:?}", parts);
+        let res = Uri::from_parts(parts);
+        println!("{:?}", res);
 
-        Ok(Uri::from_parts(parts)?)
+        Ok(Uri::from(res?))
     }
 
     /*
@@ -835,11 +851,11 @@ pub trait DockerTrait
     }
 */
     /// Returns information associated with the docker daemon
-    fn info(&self) -> Box<Future<Item=Info, Error=Error>> {
+    fn info(&self) -> Box<Future<Item=Info, Error=Error> + Send> {
         let path = Some("/info");
         let query = None;
 
-        Box::new(self.send_request(path, query)
+        Box::new(self.get(path, query)
             .and_then(|response|
                 response.into_body().concat2())
             .map_err(Error::from)
@@ -880,10 +896,11 @@ pub trait DockerTrait
     fn get(&self, path: Option<&str>, query: Option<&str>) -> ResponseFuture
     {
         let uri = self.compose_uri(path, query).unwrap();
+        println!("{:?}", uri);
 
         let request =
             ::transport::build_request(Method::GET, uri, Body::empty()).unwrap();
-        ::transport::build_response(&self.client(), request)
+        self.client().request(request)
     }
 /*
     fn post<'a, B>(&'a self, endpoint: &str, body: Option<B>) -> Box<ResponseFuture>
