@@ -2,8 +2,6 @@ extern crate byteorder;
 extern crate flate2;
 extern crate hyper;
 
-#[cfg(target_os = "linux")]
-extern crate hyperlocal;
 extern crate rustc_serialize;
 extern crate tar;
 extern crate url;
@@ -35,10 +33,8 @@ pub use errors::Result;
 use hyper::Body;
 use hyper::body::Payload;
 use hyper::Method;
-pub use hyper::{Client, Uri};
+use hyper::{Client, Uri};
 use hyper::rt::Stream;
-#[cfg(target_os = "linux")]
-use hyperlocal::UnixSocketConnector;
 use serde_json::Value;
 use serde_json::StreamDeserializer;
 
@@ -68,6 +64,22 @@ use hyper::client::HttpConnector;
 use http::uri::Parts;
 use http::uri::PathAndQuery;
 use std::str::FromStr;
+use http::uri;
+
+use tokio_uds::UnixStream;
+use std::io;
+use hyper::client::connect::Destination;
+use hyper::client::connect::Connected;
+use http::uri::Scheme;
+use tokio::reactor::Handle;
+use std::net::IpAddr;
+use futures::future::FutureResult;
+use futures::future;
+use futures::Join;
+use std::io::Sink;
+use std::path::Path;
+use std::path::PathBuf;
+
 
 /*
 /// Interface for accessing and manipulating a named docker image
@@ -693,25 +705,65 @@ impl DockerTrait for TcpSSLDocker {
         Client::with_connector(HttpsConnector::new(ssl))
     }
 
-    fn client(&self) -> &Client<Self::Connector> {
-        &self.client
-    }
-
     fn host(&self) -> &Uri {
         &self.host
     }
+
+    fn client(&self) -> &Client<Self::Connector> {
+        &self.client
+    }
 }
 
+
+
+
+
+const UNIX_SCHEME: &str = "unix";
+
+pub struct UnixConnector {
+    handle: Handle,
+    path: PathBuf
+}
+
+impl Connect for UnixConnector {
+    type Transport = UnixStream;
+    type Error = io::Error;
+    type Future = Box<Future<Item=(UnixStream, Connected), Error=io::Error> + Send>;
+
+    fn connect(&self, dst: Destination) -> Self::Future {
+        if dst.scheme() != "unix" {
+            return Box::new(future::err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("Invalid uri {:?}", dst),
+            )));
+        }
+        println!(">>>> {:?}", &self.path);
+        println!(">>>> {:?}", &self.path);
+        let connected = future::ok(Connected::new());
+        Box::new(UnixStream::connect(&self.path.as_path()).join(connected))
+    }
+}
+
+
+
+
+
 #[cfg(target_os = "linux")]
-pub type UnixDocker =  Docker<UnixSocketConnector>;
+pub type UnixDocker =  Docker<UnixConnector>;
 
 #[cfg(target_os = "linux")]
 impl DockerTrait for UnixDocker {
-    type Connector = UnixSocketConnector;
+    type Connector = UnixConnector;
 
     fn new(host: Uri) -> Result<Self> {
+        let path = format!("/{}{}", host.authority().unwrap(), host.path());
+        let host = "http://v1.37/".parse().unwrap();
         Ok(UnixDocker {
-            client: builder().build_http(),
+            client: Client::builder().build(
+                UnixConnector {
+                    handle: Handle::current(),
+                    path: PathBuf::from(path),
+                }),
             host
         })
     }
@@ -725,7 +777,7 @@ impl DockerTrait for UnixDocker {
     }
 }
 
-/// Entrypoint interface for communicating with docker daemon
+/// Entry point interface for communicating with docker daemon
 pub trait DockerTrait
     where
         Self: Sized
@@ -746,9 +798,13 @@ pub trait DockerTrait
     fn compose_uri(&self, path: Option<&str>, query: Option<&str>) -> Result<Uri> {
         let mut parts = self.host().clone().into_parts();
         let path_query = PathAndQuery::from_str(
-            format!("{}{}", path.unwrap_or(""), query.unwrap_or("")).as_ref())?;
+            format!("{}{}",
+                    path.unwrap_or(""),
+                    query.unwrap_or("")
+            ).as_ref())?;
 
         parts.path_and_query = Some(path_query);
+        println!("{:?}", parts);
 
         Ok(Uri::from_parts(parts)?)
     }
@@ -783,7 +839,7 @@ pub trait DockerTrait
         let path = Some("/info");
         let query = None;
 
-        Box::new(self.get(path, query)
+        Box::new(self.send_request(path, query)
             .and_then(|response|
                 response.into_body().concat2())
             .map_err(Error::from)

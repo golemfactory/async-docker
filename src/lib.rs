@@ -23,7 +23,9 @@ extern crate hyper_openssl;
 extern crate openssl;
 
 #[cfg(target_os = "linux")]
-extern crate hyperlocal;
+extern crate tokio_uds;
+#[cfg(target_os = "linux")]
+extern crate unix_socket;
 
 #[macro_use]
 extern crate log;
@@ -42,6 +44,8 @@ extern crate serde;
 extern crate serde_json;
 extern crate hyper;
 extern crate http;
+extern crate tokio;
+extern crate futures;
 
 pub mod builder;
 pub mod errors;
