@@ -33,6 +33,7 @@ error-chain = "0.12"
 futures = "0.1"
 http = "0.1"
 tokio = "0.1"
+tokio-codec = "0.1"
 
 hyper-openssl = { version = "0.6", optional = true }
 openssl = { version = "0.9", optional = true }

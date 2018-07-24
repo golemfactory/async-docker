@@ -80,6 +80,11 @@ use std::io::Sink;
 use std::path::Path;
 use std::path::PathBuf;
 use http::uri::Authority;
+use serde::Serialize;
+use serde::Deserialize;
+use hyper::Chunk;
+use hyper::Response;
+use serde_json::from_str as de_from_str;
 
 
 /*
@@ -738,18 +743,12 @@ impl Connect for UnixConnector {
                 format!("Invalid uri {:?}", dst),
             )));
         }
-        println!(">>>> {:?}", &self.path);
-        println!(">>>> {:?}", &self.path);
+
         let connected = future::ok(Connected::new());
         UnixStream::connect(&self.path.as_path());
-        println!(">>>> {:?}", &self.path);
-
 
         let unix = UnixStream::connect(&self.path.as_path());
-        println!("<><><><>");
         let join = unix.join(connected);
-        println!("<><><><>");
-
 
         Box::new(join)
     }
@@ -790,6 +789,23 @@ impl DockerTrait for UnixDocker {
     fn client(&self) -> &Client<Self::Connector> {
         &self.client
     }
+}
+
+fn request<F, T>(f: ResponseFuture, des : F) -> Box<Future<Item=T, Error=Error> + Send>
+    where
+        F : Fn(&str) -> serde_json::Result<T> + Send + 'static,
+        T : Send + 'static
+{
+    Box::new(f
+        .and_then(|response|
+            response.into_body().concat2())
+        .map_err(Error::from)
+        .and_then(move |chunk : Chunk| {
+            println!("{:?}", chunk.as_ref());
+            des(str::from_utf8(chunk.as_ref())?)
+                .map_err(Error::from)
+        })
+    )
 }
 
 /// Entry point interface for communicating with docker daemon
@@ -855,43 +871,37 @@ pub trait DockerTrait
         let path = Some("/info");
         let query = None;
 
-        Box::new(self.get(path, query)
-            .and_then(|response|
-                response.into_body().concat2())
-            .map_err(Error::from)
-            .and_then(|chunk| {
-                let stringify = str::from_utf8(&chunk)?;
-                ::serde_json::from_str::<Info>(stringify)
-                    .map_err(Error::from)
-            })
-        )
+        request(self.get(path, query),|s|de_from_str::<Info>(s))
     }
-/*
+
     /// Returns a simple ping response indicating the docker daemon is accessible
-    pub fn ping(&self) -> Box<Future<Item=String, Error=Error>> {
-        self.get("/ping")?
-            .and_then(|response|
-                ::serde_json::from_str::<String>(response.into_body()?)
-            )
+    fn ping(&self) -> Box<Future<Item=Value, Error=Error> + Send> {
+        let path = Some("//_ping");
+        let query = None;
+
+        request(self.get(path, query),|s|de_from_str::<Value>(s))
     }
-*/
-    /*
+
+/*
     //noinspection Annotator
     //noinspection ALL
     /// Returns an iterator over streamed docker events
-    pub fn events(&self, opts: &EventsOptions) -> Box<Future<Item=String, Error=Error>> {
-        let mut path = vec!["/events".to_owned()];
+    fn events(&self, opts: &EventsOptions) -> Box<Future<Item=String, Error=Error>> {
+        let path = Some("/events");
+        let query= opts.serialize();
 
-        if let Some(query) = opts.serialize() {
-            path.push(query);
-        }
-
-        self.get(&path.join("?")[..])
+        Box::new(self.get(path, query)
             .and_then(|response|
-                ::serde_json::from_reader::<String>(response.into_stream()?)
-            )
-    }
-    */
+                response.into_body()
+            .map_err(Error::from)
+            .and_then(|chunk| {
+                let stringify = str::from_utf8(&chunk)?;
+                ::serde_json::from_reader::<String>(stringify)
+                    .map_err(Error::from)
+            })
+        )
+    }*/
+
 
     fn get(&self, path: Option<&str>, query: Option<&str>) -> ResponseFuture
     {

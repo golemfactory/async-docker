@@ -33,7 +33,7 @@ fn main() {
     use tokio::executor::Executor;
 
 
-    let connection = docker.unwrap().info()
+    let connection = docker.unwrap().ping()
         .then(|res| {
             println!("wrote message; success={:?}", res);
             Ok(())
