@@ -7,6 +7,7 @@ use errors::{ErrorKind, Result};
 
 //use super::reader::BufIterator;
 
+use http;
 use hyper::Body;
 use hyper::Method;
 use hyper::Client;
@@ -22,6 +23,7 @@ use std::convert::Into;
 use errors::ErrorKind as EK;
 use hyper::client::HttpConnector;
 use errors::Error;
+use std::error::Error as StdError;
 
 /// Transports are types which define the means of communication
 /// with the docker daemon
@@ -65,7 +67,7 @@ pub fn build_request<B>(method: Method, uri: Uri, body: B)
 {
     let body: Body = body.into();
 
-    Request::builder()
+    hyper::Request::builder()
         .method(method)
         .uri(uri)
         .body(body)
@@ -83,30 +85,6 @@ where
 
     Ok(BufIterator::<T>::new(res))
 }*/
-
-pub fn build_response<T>(client: &Client<T>, request: Request<Body>)
-    -> ResponseFuture
-    where
-        T: Connect + 'static
-{
-    client.request(request)
-}
-
-    /*
-    match res.status {
-        StatusCode::Ok
-        | StatusCode::Created
-        | StatusCode::SwitchingProtocols => Ok(Box::new(res)),
-        StatusCode::NoContent => Ok(Box::new(hyper::Client::new())),
-        // todo: constantize these
-        StatusCode::BadRequest
-        | StatusCode::NotFound
-        | StatusCode::NotAcceptable
-        | StatusCode::Conflict
-        | StatusCode::InternalServerError => Err(ErrorKind::HyperFault(res.status).into()),
-        _ => unreachable!(),
-    }*/
-
 
 
 

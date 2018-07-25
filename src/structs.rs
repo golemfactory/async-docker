@@ -65,6 +65,7 @@ use http::uri::Parts;
 use http::uri::PathAndQuery;
 use std::str::FromStr;
 use http::uri;
+use hyper::Error as HyperError;
 
 use tokio_uds::UnixStream;
 use std::io;
@@ -792,34 +793,56 @@ impl DockerTrait for UnixDocker {
     }
 }
 
-fn status_code(future: ResponseFuture) -> Box<Future<Item=StatusCode, Error=Error> + Send> {
+fn status_code(future: ResponseFutureWrapper) -> Box<Future<Item=StatusCode, Error=Error> + Send> {
     Box::new(future
-        .and_then(|response|
-            future::ok(response.status()))
-        .map_err(Error::from)
+        .and_then(|w| w
+            .and_then(|response|
+                future::ok(response.status()))
+            .map_err(Error::from)
+        )
     )
 }
 
-fn parse_as_string<T>(future: ResponseFuture) -> Box<Future<Item=T, Error=Error> + Send>
+fn parse_as_string<T>(future: ResponseFutureWrapper) -> Box<Future<Item=T, Error=Error> + Send>
     where
         T : for<'a> ::serde::Deserialize<'a> + Send + 'static
 {
     Box::new(future
-        .and_then(|response|
-            response.into_body().concat2())
-        .map_err(Error::from)
-        .and_then(move |chunk : Chunk| {
-            println!("{:?}", chunk.as_ref());
-            de_from_str::<T>(str::from_utf8(chunk.as_ref())?)
-                .map_err(Error::from)
-        })
+        .and_then(|w| w
+            .and_then(|response|
+                response.into_body().concat2())
+            .map_err(Error::from)
+            .and_then(|chunk : Chunk| {
+                println!("{:?}", chunk.as_ref());
+                de_from_str::<T>(str::from_utf8(chunk.as_ref())?)
+                    .map_err(Error::from)
+            })
+        )
     )
+}
+
+type ResponseFutureWrapper = Box<Future<Item=ResponseFuture, Error=Error> + Send>;
+
+fn compose_uri(host: &Uri, path: Option<&str>, query: Option<&str>) -> Result<Uri> {
+    use hyper::Error;
+    let mut parts = host.clone().into_parts();
+    let path_query = PathAndQuery::from_str(
+        format!("{}{}",
+                path.unwrap_or(""),
+                query.unwrap_or("")
+        ).as_ref())?;
+
+    parts.path_and_query = Some(path_query);
+    let res = Uri::from_parts(parts);
+    println!("{:?}", res);
+
+    Ok(Uri::from(res?))
 }
 
 /// Entry point interface for communicating with docker daemon
 pub trait DockerTrait
     where
-        Self: Sized
+        Self: Sized + Sync + Send + 'static
 {
     type Connector : Connect + 'static;
 
@@ -833,21 +856,6 @@ pub trait DockerTrait
     fn host(&self) -> &Uri;
 
     fn client(&self) -> &Client<Self::Connector>;
-
-    fn compose_uri(&self, path: Option<&str>, query: Option<&str>) -> Result<Uri> {
-        let mut parts = self.host().clone().into_parts();
-        let path_query = PathAndQuery::from_str(
-            format!("{}{}",
-                    path.unwrap_or(""),
-                    query.unwrap_or("")
-            ).as_ref())?;
-
-        parts.path_and_query = Some(path_query);
-        let res = Uri::from_parts(parts);
-        println!("{:?}", res);
-
-        Ok(Uri::from(res?))
-    }
 
     /*
     /// Exports an interface for interacting with docker images
@@ -867,7 +875,7 @@ pub trait DockerTrait
     }
 */
     /// Returns version information associated with the docker daemon
-    fn version(&self) -> Box<Future<Item=Version, Error=Error> + Send> {
+    fn version(self) -> Box<Future<Item=Version, Error=Error> + Send> {
         let path = Some("/version");
         let query = None;
 
@@ -875,7 +883,7 @@ pub trait DockerTrait
     }
 
     /// Returns information associated with the docker daemon
-    fn info(&self) -> Box<Future<Item=Info, Error=Error> + Send> {
+    fn info(self) -> Box<Future<Item=Info, Error=Error> + Send> {
         let path = Some("/info");
         let query = None;
 
@@ -883,7 +891,7 @@ pub trait DockerTrait
     }
 
     /// Returns a simple ping response indicating the docker daemon is accessible
-    fn ping(&self) -> Box<Future<Item=StatusCode, Error=Error> + Send> {
+    fn ping(self) -> Box<Future<Item=StatusCode, Error=Error> + Send> {
         let path = Some("/_ping");
         let query = None;
 
@@ -908,19 +916,24 @@ pub trait DockerTrait
                     .map_err(Error::from)
             })
         )
-    }*/
-
-
-    fn get(&self, path: Option<&str>, query: Option<&str>) -> ResponseFuture
-    {
-        let uri = self.compose_uri(path, query).unwrap();
-        println!("{:?}", uri);
-
-        let request =
-            ::transport::build_request(Method::GET, uri, Body::empty()).unwrap();
-        self.client().request(request)
     }
-/*
+*/
+
+
+    fn get(self, path: Option<&str>, query: Option<&str>) -> ResponseFutureWrapper
+    {
+        Box::new(future::result(compose_uri(self.host(), path, query))
+            .and_then(|uri|
+                ::transport::build_request(Method::GET, uri, Body::empty())
+                    .map_err(Error::from)
+            )
+            .map_err(Error::from)
+            .and_then(move |request|
+                Ok(self.client().request(request)))
+        )
+    }
+
+    /*
     fn post<'a, B>(&'a self, endpoint: &str, body: Option<B>) -> Box<ResponseFuture>
     where
         B: Into<Body>,

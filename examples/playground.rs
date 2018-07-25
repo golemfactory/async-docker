@@ -16,10 +16,10 @@ use std::io;
 use std::io::Write;
 use tokio::timer::Deadline;
 use tokio::timer::Delay;
-use std::time::Instant;
-use tokio::executor::DefaultExecutor;
 use std::thread;
 use std::time::Duration;
+use tokio::runtime::Runtime;
+use tokio::executor::Executor;
 
 fn main() {
     let uri : http::uri::Uri = "unix://var/run/docker.sock".parse().unwrap();
@@ -28,12 +28,8 @@ fn main() {
 
     let docker = UnixDocker::new(uri);
 
-    use futures::future::lazy;
-    use tokio::runtime::Runtime;
-    use tokio::executor::Executor;
 
-
-    let connection = docker.unwrap().ping()
+    let connection = docker.unwrap().version()
         .then(|res| {
             println!("wrote message; success={:?}", res);
             Ok(())
@@ -43,7 +39,7 @@ fn main() {
     let executor = rt.executor();
 
     // Spawn a new task that processes the socket:
-    let a = executor.spawn(Box::new(connection));
+    let a = executor.spawn(connection);
 
 
     thread::sleep(Duration::from_millis(200));
