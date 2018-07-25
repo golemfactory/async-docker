@@ -85,6 +85,7 @@ use serde::Deserialize;
 use hyper::Chunk;
 use hyper::Response;
 use serde_json::from_str as de_from_str;
+use http::StatusCode;
 
 
 /*
@@ -791,18 +792,25 @@ impl DockerTrait for UnixDocker {
     }
 }
 
-fn request<F, T>(f: ResponseFuture, des : F) -> Box<Future<Item=T, Error=Error> + Send>
+fn status_code(future: ResponseFuture) -> Box<Future<Item=StatusCode, Error=Error> + Send> {
+    Box::new(future
+        .and_then(|response|
+            future::ok(response.status()))
+        .map_err(Error::from)
+    )
+}
+
+fn parse_as_string<T>(future: ResponseFuture) -> Box<Future<Item=T, Error=Error> + Send>
     where
-        F : Fn(&str) -> serde_json::Result<T> + Send + 'static,
-        T : Send + 'static
+        T : for<'a> ::serde::Deserialize<'a> + Send + 'static
 {
-    Box::new(f
+    Box::new(future
         .and_then(|response|
             response.into_body().concat2())
         .map_err(Error::from)
         .and_then(move |chunk : Chunk| {
             println!("{:?}", chunk.as_ref());
-            des(str::from_utf8(chunk.as_ref())?)
+            de_from_str::<T>(str::from_utf8(chunk.as_ref())?)
                 .map_err(Error::from)
         })
     )
@@ -857,29 +865,29 @@ pub trait DockerTrait
     pub fn networks<'a>(&'a self) -> Networks<T> {
         Networks::new(self)
     }
-
-    /// Returns version information associated with the docker daemon
-    pub fn version(&self) -> Box<Future<Item=Version, Error=Error>> {
-        self.get("/version")?
-            .and_then(|response|
-                ::serde_json::from_str::<Version>(response.into_body()?)
-            )
-    }
 */
+    /// Returns version information associated with the docker daemon
+    fn version(&self) -> Box<Future<Item=Version, Error=Error> + Send> {
+        let path = Some("/version");
+        let query = None;
+
+        parse_as_string::<Version>(self.get(path, query))
+    }
+
     /// Returns information associated with the docker daemon
     fn info(&self) -> Box<Future<Item=Info, Error=Error> + Send> {
         let path = Some("/info");
         let query = None;
 
-        request(self.get(path, query),|s|de_from_str::<Info>(s))
+        parse_as_string::<Info>(self.get(path, query))
     }
 
     /// Returns a simple ping response indicating the docker daemon is accessible
-    fn ping(&self) -> Box<Future<Item=Value, Error=Error> + Send> {
-        let path = Some("//_ping");
+    fn ping(&self) -> Box<Future<Item=StatusCode, Error=Error> + Send> {
+        let path = Some("/_ping");
         let query = None;
 
-        request(self.get(path, query),|s|de_from_str::<Value>(s))
+        status_code(self.get(path, query))
     }
 
 /*
