@@ -45,7 +45,9 @@ extern crate serde_json;
 extern crate hyper;
 extern crate http;
 extern crate tokio;
+extern crate tokio_codec;
 extern crate futures;
+extern crate bytes;
 
 pub mod builder;
 pub mod errors;
@@ -55,6 +57,7 @@ mod tarball;
 pub mod transport;
 pub mod tty;
 pub mod structs;
+mod lines;
 
 pub use errors::Error;
 pub use errors::Result;

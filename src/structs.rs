@@ -34,7 +34,7 @@ use hyper::Body;
 use hyper::body::Payload;
 use hyper::Method;
 use hyper::{Client, Uri};
-use hyper::rt::Stream;
+use futures::Stream;
 use serde_json::Value;
 use serde_json::StreamDeserializer;
 
@@ -87,7 +87,17 @@ use hyper::Chunk;
 use hyper::Response;
 use serde_json::from_str as de_from_str;
 use http::StatusCode;
-
+use std::fmt::Display;
+use std::fmt::Debug;
+use tokio_codec::LinesCodec;
+use tokio_codec::Decoder;
+use bytes::BytesMut;
+use std::result::IntoIter;
+use ::rep::Event;
+use futures::stream::StreamFuture;
+use futures::stream::Map;
+use lines::Lines;
+use futures::stream;
 
 /*
 /// Interface for accessing and manipulating a named docker image
@@ -249,16 +259,24 @@ impl<'a, T> Images<'a, T> {
 }
 */
 
-/*
+
 /// Interface for accessing and manipulating a docker container
-pub struct Container<'a, 'b, T: 'a> {
-    docker: &'a Docker<T>,
+pub struct Container<'b, D, T>
+    where
+        D: DockerTrait<Connector=T>,
+        T: 'static + Connect,
+{
+    docker: D,
     id: Cow<'b, str>,
 }
 
-impl<'a, 'b, T> Container<'a, 'b, T> {
+impl<'a, 'b, D, T> Container<'b, D, T>
+    where
+        D: DockerTrait<Connector=T>,
+        T: 'static + Connect,
+{
     /// Exports an interface exposing operations against a container instance
-    pub fn new<S>(docker: &'a Docker<T>, id: S) -> Container<'a, 'b, T>
+    pub fn new<S>(docker: D, id: S) -> Container<'b, D, T>
     where
         S: Into<Cow<'b, str>>,
     {
@@ -267,7 +285,7 @@ impl<'a, 'b, T> Container<'a, 'b, T> {
             id: id.into(),
         }
     }
-
+/*
     /// a getter for the container id
     pub fn id(&self) -> &str {
         &self.id
@@ -320,13 +338,17 @@ impl<'a, 'b, T> Container<'a, 'b, T> {
         self.docker
             .stream_get(&format!("/containers/{}/export", self.id)[..])
     }
-
+*/
     /// Returns a stream of stats specific to this container instance
-    pub fn stats(&self) -> Box<ResponseFuture> {
-        self.docker
-            .bufreader_get(&format!("/containers/{}/stats", self.id)[..])
+    pub fn stats(&self) -> Box<Stream<Item=Result<::rep::Stats>, Error=Error> + Send> {
+        let string = format!("/containers/{}/stats", self.id);
+        let path = Some(string.as_ref());
+        let query : Option<&str> = None;
+
+        Box::new(parse_as_stream::<::rep::Stats>(self.docker.get(path, query)))
     }
 
+    /*
     /// Start the container instance
     pub fn start(&'a self) -> Result<()> {
         let s = &format!("/containers/{}/start", self.id)[..];
@@ -487,10 +509,11 @@ impl<'a, 'b, T> Container<'a, 'b, T> {
             .stream_put(&path.join("?"), Some(body))
             .map(|_| ())
     }
+    */
 
-    // todo attach, attach/ws, copy, archive
+    // todo attach, attach/ws, copy
 }
-*/
+
 
 /*
 /// Interface for docker containers
@@ -758,8 +781,6 @@ impl Connect for UnixConnector {
 
 
 
-
-
 #[cfg(target_os = "linux")]
 pub type UnixDocker =  Docker<UnixConnector>;
 
@@ -809,27 +830,113 @@ fn parse_as_string<T>(future: ResponseFutureWrapper) -> Box<Future<Item=T, Error
 {
     Box::new(future
         .and_then(|w| w
+
             .and_then(|response|
                 response.into_body().concat2())
             .map_err(Error::from)
-            .and_then(|chunk : Chunk| {
+            .and_then(|chunk| {
                 println!("{:?}", chunk.as_ref());
                 de_from_str::<T>(str::from_utf8(chunk.as_ref())?)
                     .map_err(Error::from)
             })
+
         )
     )
 }
 
+/*
+fn parse_as_stream_<T>(future: ResponseFutureWrapper) ->
+    Box<Future<Item=Stream<Item=::rep::Event, Error=Error>, Error=Error> + Send>
+    where
+        T : for<'a> ::serde::Deserialize<'a> + Send + 'static + Debug + Sized
+{
+    use futures::Stream;
+    use futures::IntoFuture;
+
+    Box::new(future
+        .and_then(|w| w
+
+            .and_then(|response| {
+                Ok(response.into_body())
+            })
+            .map_err(Error::from)
+
+        )
+    )
+}
+*/
+
+fn parse_as_stream<T>(future: ResponseFutureWrapper) ->
+              impl Stream<Item=Result<T>, Error=Error>
+    where
+        T : for<'a> ::serde::Deserialize<'a> + Send + Debug + 'static
+{
+    use futures::Stream;
+    use futures::Future;
+    use std::iter::Iterator;
+    future
+        .and_then(|w| w
+            .map_err(Error::from)
+            .and_then(|response| {
+                let body = response
+                    .into_body()
+                    .map_err(Error::from)
+                    .map({ |a|
+                        a.into_bytes().clone()
+                    });
+
+                let lines = Lines::new(body);
+
+                let mapped = lines
+                    .map(|chunk| {
+                        let as_str = str::from_utf8(chunk.as_ref())?;
+                        let t = de_from_str::<T>(as_str)
+                            .map_err(Error::from);
+                        t
+                    });
+
+                Ok(mapped)
+            })
+            .map_err(Error::from)
+        )
+        .flatten_stream()
+}
+
+/*
+fn parse_as_stream<T>(future: ResponseFutureWrapper) -> Box<Future<Item=(), Error=Error> + Send>
+    where
+        T : for<'a> ::serde::Deserialize<'a> + Send + 'static
+{
+    use futures::stream::Flatten;
+    use futures::Stream;
+
+    Box::new(future
+        .and_then(|w| w
+            .and_then(|response:Response<Body>| {
+                let a: Stream = response.into_body();
+                a.concat2()
+            }
+                .and_then(|a|
+                    LinesCodec::new().framed(a))
+
+            ).map_err(Error::from)
+        )
+    )
+}
+*/
+
 type ResponseFutureWrapper = Box<Future<Item=ResponseFuture, Error=Error> + Send>;
 
-fn compose_uri(host: &Uri, path: Option<&str>, query: Option<&str>) -> Result<Uri> {
-    use hyper::Error;
+fn compose_uri<A>(host: &Uri, path: Option<&str>, query: Option<A>) -> Result<Uri>
+    where
+        A: AsRef<str> + Display + Default
+{
+    use futures::Stream;
     let mut parts = host.clone().into_parts();
     let path_query = PathAndQuery::from_str(
         format!("{}{}",
                 path.unwrap_or(""),
-                query.unwrap_or("")
+                query.unwrap_or(A::default())
         ).as_ref())?;
 
     parts.path_and_query = Some(path_query);
@@ -842,7 +949,7 @@ fn compose_uri(host: &Uri, path: Option<&str>, query: Option<&str>) -> Result<Ur
 /// Entry point interface for communicating with docker daemon
 pub trait DockerTrait
     where
-        Self: Sized + Sync + Send + 'static
+        Self: Sized + Sync + Send
 {
     type Connector : Connect + 'static;
 
@@ -875,63 +982,58 @@ pub trait DockerTrait
     }
 */
     /// Returns version information associated with the docker daemon
-    fn version(self) -> Box<Future<Item=Version, Error=Error> + Send> {
+    fn version(&self) -> Box<Future<Item=Version, Error=Error> + Send> {
         let path = Some("/version");
-        let query = None;
+        let query : Option<String> = None;
 
         parse_as_string::<Version>(self.get(path, query))
     }
 
     /// Returns information associated with the docker daemon
-    fn info(self) -> Box<Future<Item=Info, Error=Error> + Send> {
+    fn info(&self) -> Box<Future<Item=Info, Error=Error> + Send> {
         let path = Some("/info");
-        let query = None;
+        let query : Option<String> = None;
 
         parse_as_string::<Info>(self.get(path, query))
     }
 
     /// Returns a simple ping response indicating the docker daemon is accessible
-    fn ping(self) -> Box<Future<Item=StatusCode, Error=Error> + Send> {
+    fn ping(&self) -> Box<Future<Item=StatusCode, Error=Error> + Send> {
         let path = Some("/_ping");
-        let query = None;
+        let query : Option<String> = None;
 
         status_code(self.get(path, query))
     }
 
-/*
     //noinspection Annotator
     //noinspection ALL
     /// Returns an iterator over streamed docker events
-    fn events(&self, opts: &EventsOptions) -> Box<Future<Item=String, Error=Error>> {
+    fn events(&self, opts: &EventsOptions) -> Box<Stream<Item=Result<::rep::Event>, Error=Error> + Send> {
         let path = Some("/events");
-        let query= opts.serialize();
+        let query : Option<String> = opts.serialize();
 
-        Box::new(self.get(path, query)
-            .and_then(|response|
-                response.into_body()
-            .map_err(Error::from)
-            .and_then(|chunk| {
-                let stringify = str::from_utf8(&chunk)?;
-                ::serde_json::from_reader::<String>(stringify)
-                    .map_err(Error::from)
-            })
-        )
+        Box::new(parse_as_stream::<::rep::Event>(self.get(path, query)))
     }
-*/
 
 
-    fn get(self, path: Option<&str>, query: Option<&str>) -> ResponseFutureWrapper
+    fn get<A>(&self, path: Option<&str>, query: Option<A>) -> ResponseFutureWrapper
+        where
+            A: AsRef<str> + Display + Default
     {
+        let client = self.client().clone();
+
         Box::new(future::result(compose_uri(self.host(), path, query))
             .and_then(|uri|
                 ::transport::build_request(Method::GET, uri, Body::empty())
                     .map_err(Error::from)
             )
             .map_err(Error::from)
-            .and_then(move |request|
-                Ok(self.client().request(request)))
+            .and_then( move |request|
+                Ok(client.request(request)))
         )
     }
+
+
 
     /*
     fn post<'a, B>(&'a self, endpoint: &str, body: Option<B>) -> Box<ResponseFuture>

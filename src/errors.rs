@@ -16,6 +16,7 @@ error_chain! {
         InvalidUri(::http::uri::InvalidUri);
         Http(::http::Error);
         Utf8Error(::std::str::Utf8Error);
+        FromUtf8Error(::std::string::FromUtf8Error);
         InvalidUriParts(::http::uri::InvalidUriParts);
     }
 
