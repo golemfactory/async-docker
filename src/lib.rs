@@ -15,17 +15,6 @@
 
 #![recursion_limit = "256"]
 
-// Optional ssl
-// TODO: maybe there is a way to put this in another file
-#[cfg(feature = "ssl")]
-extern crate hyper_openssl;
-#[cfg(feature = "ssl")]
-extern crate openssl;
-
-#[cfg(target_os = "linux")]
-extern crate tokio_uds;
-#[cfg(target_os = "linux")]
-extern crate unix_socket;
 
 #[macro_use]
 extern crate log;
@@ -35,32 +24,27 @@ extern crate serde_derive;
 extern crate error_chain;
 
 
-extern crate byteorder;
-extern crate flate2;
-extern crate rustc_serialize;
-extern crate tar;
-extern crate url;
 extern crate serde;
 extern crate serde_json;
+extern crate tokio;
+extern crate futures;
 extern crate hyper;
 extern crate http;
-extern crate tokio;
-extern crate tokio_codec;
-extern crate futures;
-extern crate bytes;
+extern crate url;
 
-pub mod builder;
-pub mod errors;
-pub mod reader;
-pub mod rep;
-mod tarball;
-pub mod transport;
+pub mod representation;
+pub mod communicate;
+pub mod build;
 pub mod tty;
-pub mod structs;
-mod lines;
+
+mod errors;
+mod tarball;
+mod transport;
+
 
 pub use errors::Error;
 pub use errors::Result;
 
-pub use structs::*;
-pub use builder::*;
+pub use communicate::*;
+pub use build::*;
+pub use representation::*;
