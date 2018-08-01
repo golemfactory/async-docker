@@ -82,77 +82,7 @@ pub fn build_simple_query<A>(name: &str, value: Option<A>) -> Option<String>
     query
 }
 
-/*
-/// Interface for accessing and manipulating a named docker image
-pub struct Image<'a, 'b, T: 'a> {
-    docker: &'a Docker<T>,
-    name: Cow<'b, str>,
-}
 
-impl<'a, 'b, T> Image<'a, 'b, T> {
-    /// Exports an interface for operations that may be performed against a named image
-    pub fn new<S>(docker: &'a Docker<T>, name: S) -> Image<'a, 'b, T>
-    where
-        S: Into<Cow<'b, str>>,
-    {
-        Image {
-            docker,
-            name: name.into(),
-        }
-    }
-
-    /// Inspects a named image's details
-    pub fn inspect(&self) -> Result<ImageDetails> {
-        let raw = self.docker.get(&format!("/images/{}/json", self.name)[..])?;
-        ::serde_json::from_str::<ImageDetails>(&raw).map_err(Error::from)
-    }
-
-    /// Lists the history of the images set of changes
-    pub fn history(&self) -> Result<Vec<History>> {
-        let raw = self
-            .docker
-            .get(&format!("/images/{}/history", self.name)[..])?;
-        ::serde_json::from_str::<Vec<History>>(&raw).map_err(Error::from)
-    }
-
-    /// Deletes an image
-    pub fn delete(&self) -> Result<Vec<Status>> {
-        let raw = self.docker.delete(&format!("/images/{}", self.name)[..])?;
-        match ::serde_json::from_str(&raw)? {
-            Value::Array(ref xs) => xs
-                .iter()
-                .map(|j| {
-                    let obj = j
-                        .as_object()
-                        .ok_or_else(|| EK::JsonTypeError("<anonym>", "Object"))?;
-
-                    if let Some(sha) = obj.get("Untagged") {
-                        sha.as_str()
-                            .map(|s| Status::Untagged(s.to_owned()))
-                            .ok_or_else(|| EK::JsonTypeError("Untagged", "String"))
-                    } else {
-                        obj.get("Deleted")
-                            .ok_or_else(|| EK::JsonFieldMissing("Deleted' or 'Untagged"))
-                            .and_then(|sha| {
-                                sha.as_str()
-                                    .map(|s| Status::Deleted(s.to_owned()))
-                                    .ok_or_else(|| EK::JsonTypeError("Deleted", "String"))
-                            })
-                    }
-                })
-                .map(|r| r.map_err(Error::from_kind)),
-
-            _ => unreachable!(),
-        }.collect()
-    }
-
-    /// Export this image to a tarball
-    pub fn export(&self) -> Box<ResponseFuture> {
-        self.docker
-            .stream_get(&format!("/images/{}/get", self.name)[..])
-    }
-}
-*/
 
 /*
 /// Interface for docker images

@@ -4,6 +4,7 @@ pub mod tcp_docker;
 pub mod unix_docker;
 pub mod util;
 pub mod container;
+pub mod image;
 
 pub use docker::DockerTrait;
 pub use tcp_docker::TcpDocker;
