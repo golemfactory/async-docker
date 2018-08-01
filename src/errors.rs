@@ -55,6 +55,11 @@ error_chain! {
             description("Failed to find a port")
                 display("Failed to find a port")
         }
+
+        Eof {
+            description("broken stream")
+                display("broken stream")
+        }
     }
 
 }
