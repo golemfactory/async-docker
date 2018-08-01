@@ -2,17 +2,18 @@ pub mod docker;
 pub mod ssl_tcp_docker;
 pub mod tcp_docker;
 pub mod unix_docker;
-pub mod structs;
+pub mod util;
+pub mod container;
 
-pub use docker::*;
-pub use tcp_docker::*;
-pub use structs::*;
+pub use docker::DockerTrait;
+pub use tcp_docker::TcpDocker;
+pub use container::Container;
 
 #[cfg(target_os = "linux")]
 pub use unix_docker::*;
 
 #[cfg(feature = "ssl")]
-pub use ssl_tcp_docker::*;
+pub use ssl_tcp_docker::TcpSSLDocker;
 
 use representation;
 use build;

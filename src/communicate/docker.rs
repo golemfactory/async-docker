@@ -106,15 +106,22 @@ pub trait DockerTrait
     }
 
 
-    fn get<A>(&self, path: Option<&str>, query: Option<A>) -> ResponseFutureWrapper
+    fn request<A, B, C>(&self, path: Option<A>, query: Option<B>, body: Option<C>, method: Method)
+                     -> ResponseFutureWrapper
         where
-            A: AsRef<str> + Display + Default
+            A: AsRef<str> + Display + Default,
+            B: AsRef<str> + Display + Default,
+            C: Into<Body>,
     {
         let client = self.client().clone();
+        let body = match body {
+            None => Body::empty(),
+            Some(a) => a.into(),
+        };
 
         Box::new(future::result(compose_uri(self.host(), path, query))
             .and_then(|uri|
-                ::transport::build_request(Method::GET, uri, Body::empty())
+                ::transport::build_request(method, uri, Body::empty())
                     .map_err(Error::from)
             )
             .map_err(Error::from)
@@ -123,31 +130,41 @@ pub trait DockerTrait
         )
     }
 
+    fn get<A, B>(&self, path: Option<A>, query: Option<B>) -> ResponseFutureWrapper
+        where
+            A: AsRef<str> + Display + Default,
+            B: AsRef<str> + Display + Default
+    {
+        let method = Method::GET;
+        let body : Option<Body> = None;
 
+        self.request(path, query, body, method)
+    }
+
+    fn post<A, B, C>(&self, path: Option<A>, query: Option<B>, body: Option<C>)
+                  -> ResponseFutureWrapper
+        where
+            A: AsRef<str> + Display + Default,
+            B: AsRef<str> + Display + Default,
+            C: Into<Body>,
+    {
+        let method = Method::POST;
+
+        self.request(path, query, body, method)
+    }
+
+    fn delete<A, B>(&self, path: Option<A>, query: Option<B>) -> ResponseFutureWrapper
+        where
+            A: AsRef<str> + Display + Default,
+            B: AsRef<str> + Display + Default
+    {
+        let method = Method::DELETE;
+        let body : Option<Body> = None;
+
+        self.request(path, query, body, method)
+    }
 
     /*
-    fn post<'a, B>(&'a self, endpoint: &str, body: Option<B>) -> Box<ResponseFuture>
-    where
-        B: Into<Body>,
-    {
-        self.transport.build_response(Method::Post, endpoint, body)
-    }
-
-    fn delete<'a>(&self, endpoint: &str) -> Box<ResponseFuture> {
-        let req = self.transport.
-            build_response(Method::Delete, endpoint, ()).unwrap();
-    }
-
-    fn stream_post<'a, B>(&'a self,
-        endpoint: &str,
-        body: Option<B>,
-    ) -> Box<ResponseFuture>
-    where
-        B: Into<Body>,
-    {
-        self.transport.build_response(Method::Post, endpoint, body)
-    }
-
     fn stream_put<'a, B>(
         &'a self,
         endpoint: &str,

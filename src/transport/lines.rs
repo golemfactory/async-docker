@@ -3,7 +3,7 @@ use futures;
 use std::mem::replace;
 use std::string::FromUtf8Error;
 
-use futures::{Async, Poll, Stream, Future};
+use futures::{Async, Poll, Stream};
 use futures::stream::{Fuse};
 
 use std::iter::Iterator;

@@ -31,11 +31,12 @@ extern crate futures;
 extern crate hyper;
 extern crate http;
 extern crate url;
+extern crate bytes;
+extern crate tokio_codec;
 
 pub mod representation;
 pub mod communicate;
 pub mod build;
-pub mod tty;
 
 mod errors;
 mod tarball;

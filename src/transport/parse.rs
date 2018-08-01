@@ -1,4 +1,5 @@
 //! Transports for communicating with the docker daemon
+extern crate tokio_codec;
 
 use errors::{ErrorKind, Result};
 
@@ -29,6 +30,21 @@ use serde_json::from_str as de_from_str;
 use std::str::FromStr;
 use std::str;
 
+use tokio::fs::File;
+use std::path::Path;
+use tokio::executor::thread_pool::Builder;
+use self::tokio_codec::FramedRead;
+use self::tokio_codec::FramedWrite;
+use self::tokio_codec::BytesCodec;
+use tokio::io::AsyncWrite;
+use tokio::fs::file::CreateFuture;
+use futures::Sink;
+use std::io;
+use hyper::Chunk;
+use bytes::Bytes;
+use futures::stream::Forward;
+
+pub type ResponseFutureWrapper = Box<Future<Item=ResponseFuture, Error=Error> + Send>;
 
 pub(crate) fn build_request<B>(method: Method, uri: Uri, body: B)
     -> Result<Request<Body>>
@@ -55,6 +71,7 @@ pub(crate) fn status_code(future: ResponseFutureWrapper) -> Box<Future<Item=Stat
     )
 }
 
+
 pub(crate) fn parse_to_trait<T>(future: ResponseFutureWrapper) -> Box<Future<Item=T, Error=Error> + Send>
     where
         T : for<'a> ::serde::Deserialize<'a> + Send + 'static
@@ -73,6 +90,30 @@ pub(crate) fn parse_to_trait<T>(future: ResponseFutureWrapper) -> Box<Future<Ite
 
         )
     )
+}
+
+
+pub(crate) fn parse_to_lines(future: ResponseFutureWrapper) ->
+impl Stream<Item=String, Error=Error>
+{
+    future
+        .and_then(|w| w
+            .map_err(Error::from)
+            .and_then(|response| {
+                let body = response
+                    .into_body()
+                    .map_err(Error::from)
+                    .map({ |a|
+                        a.into_bytes().clone()
+                    });
+
+                let lines = Lines::new(body);
+
+                Ok(lines)
+            })
+            .map_err(Error::from)
+        )
+        .flatten_stream()
 }
 
 
@@ -110,42 +151,51 @@ pub(crate) fn parse_to_stream<T>(future: ResponseFutureWrapper) ->
 }
 
 
-pub(crate) fn parse_to_lines(future: ResponseFutureWrapper) ->
-        impl Stream<Item=String, Error=Error>
+pub(crate) fn parse_to_file(future: ResponseFutureWrapper, filepath: &'static str)
+    -> impl Future<Item=(), Error=Error>
 {
-    future
+    let stream = future
         .and_then(|w| w
             .map_err(Error::from)
             .and_then(|response| {
                 let body = response
                     .into_body()
-                    .map_err(Error::from)
-                    .map({ |a|
-                        a.into_bytes().clone()
-                    });
+                    .map_err(Error::from);
 
-                let lines = Lines::new(body);
-
-                Ok(lines)
+                Ok(body)
             })
-            .map_err(Error::from)
         )
-        .flatten_stream()
+        .flatten_stream();
+
+    let file = File::create(Path::new(filepath));
+
+    file
+        .map_err(Error::from)
+        .and_then(|file| {
+            let write = FramedWrite::new(file, BytesCodec::new())
+                .with(|chunk : Chunk| {
+                    future::ok::<_, Error>(Bytes::from(chunk))
+                });
+
+            stream
+                .forward(write)
+                .and_then(|_|
+                    Ok(()))
+                .map_err(Error::from)
+        })
 }
 
 
-pub type ResponseFutureWrapper = Box<Future<Item=ResponseFuture, Error=Error> + Send>;
-
-pub(crate) fn compose_uri<A>(host: &Uri, path: Option<&str>, query: Option<A>) -> Result<Uri>
+pub(crate) fn compose_uri<A, B>(host: &Uri, path: Option<A>, query: Option<B>) -> Result<Uri>
     where
-        A: AsRef<str> + Display + Default
+        A: AsRef<str> + Display + Default,
+        B: AsRef<str> + Display + Default
 {
-    use futures::Stream;
     let mut parts = host.clone().into_parts();
     let path_query = PathAndQuery::from_str(
         format!("{}?{}",
-                path.unwrap_or(""),
-                query.unwrap_or(A::default())
+                path.unwrap_or(A::default()),
+                query.unwrap_or(B::default())
         ).as_ref())?;
 
     parts.path_and_query = Some(path_query);

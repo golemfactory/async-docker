@@ -23,8 +23,6 @@ use docker::Docker;
 use docker::DockerTrait;
 use errors::Result;
 
-const UNIX_SCHEME: &str = "unix";
-
 pub struct UnixConnector {
     handle: Handle,
     path: PathBuf

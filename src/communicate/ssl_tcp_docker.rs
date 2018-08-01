@@ -7,13 +7,15 @@ use self::openssl::ssl::SslConnectorBuilder;
 use self::openssl::x509::X509_FILETYPE_PEM;
 use self::openssl::ssl::SslMethod;
 
-use structs::docker::Docker;
+use util::docker::Docker;
 use hyper::Uri;
-use structs::docker::DockerTrait;
+use util::docker::DockerTrait;
 use errors::Result;
 use std::path::Path;
 use std::env;
 use hyper::Client;
+use communicate::DockerTrait;
+use communicate::docker::Docker;
 
 pub type TcpSSLDocker = Docker<HttpsConnector<OpensslClient>>;
 
