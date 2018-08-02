@@ -61,22 +61,21 @@ pub(crate) fn build_request<B>(method: Method, uri: Uri, body: B)
 }
 
 
-pub(crate) fn status_code(future: ResponseFutureWrapper) -> Box<Future<Item=StatusCode, Error=Error> + Send> {
-    Box::new(future
+pub(crate) fn status_code(future: ResponseFutureWrapper) -> impl Future<Item=StatusCode, Error=Error> + Send {
+    future
         .and_then(|w| w
             .and_then(|response|
                 future::ok(response.status()))
             .map_err(Error::from)
         )
-    )
 }
 
 
-pub(crate) fn parse_to_trait<T>(future: ResponseFutureWrapper) -> Box<Future<Item=T, Error=Error> + Send>
+pub(crate) fn parse_to_trait<T>(future: ResponseFutureWrapper) -> impl Future<Item=T, Error=Error> + Send
     where
         T : for<'a> ::serde::Deserialize<'a> + Send + 'static
 {
-    Box::new(future
+    future
         .and_then(|w| w
 
             .and_then(|response|
@@ -89,12 +88,11 @@ pub(crate) fn parse_to_trait<T>(future: ResponseFutureWrapper) -> Box<Future<Ite
             })
 
         )
-    )
 }
 
 
 pub(crate) fn parse_to_lines(future: ResponseFutureWrapper) ->
-impl Stream<Item=String, Error=Error>
+    impl Stream<Item=String, Error=Error>
 {
     future
         .and_then(|w| w

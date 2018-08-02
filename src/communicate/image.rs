@@ -15,48 +15,48 @@ use communicate::DockerTrait;
 use hyper::client::connect::Connect;
 use std::option::Iter;
 use futures::future;
+use transport::interact::Interact;
+use std::sync::Arc;
 
 
 /// Interface for accessing and manipulating a named docker image
-pub struct Image<'a, 'b, D, T: Connect + 'a>
+pub struct Image<'b, T>
     where
-        D: 'a + DockerTrait<Connector=T>,
         T: 'static + Connect,
 {
-    docker: &'a D,
+    interact: Arc<Interact<T>>,
     name: Cow<'b, str>,
 }
 
-impl<'a, 'b, D, T> Image<'a, 'b, D, T>
+impl<'b, T> Image<'b, T>
     where
-        D: 'a + DockerTrait<Connector=T>,
         T: 'static + Connect,
 {
     /// Exports an interface for operations that may be performed against a named image
-    pub fn new<S>(docker: &'a D, name: S) -> Image<'a, 'b, D, T>
+    pub(crate) fn new<S>(interact: Arc<Interact<T>>, name: S) -> Image<'b, T>
     where
         S: Into<Cow<'b, str>>,
     {
         Image {
-            docker,
+            interact,
             name: name.into(),
         }
     }
 
     /// Inspects a named image's details
-    pub fn inspect(&self) -> Box<Future<Item=ImageDetails, Error=Error> + Send> {
+    pub fn inspect(&self) -> impl Future<Item=ImageDetails, Error=Error> + Send {
         let path = Some(format!("/images/{}/json", self.name));
         let query : Option<&str>  = None;
 
-        Box::new(parse_to_trait::<ImageDetails>(self.docker.get(path, query)))
+        Box::new(parse_to_trait::<ImageDetails>(self.interact.get(path, query)))
     }
 
     /// Lists the history of the images set of changes
-    pub fn history(&self) -> Box<Future<Item=History, Error=Error> + Send> {
+    pub fn history(&self) -> impl Future<Item=History, Error=Error> + Send {
         let path = Some(format!("/images/{}/history", self.name));
         let query : Option<&str>  = None;
 
-        Box::new(parse_to_trait::<History>(self.docker.get(path, query)))
+        Box::new(parse_to_trait::<History>(self.interact.get(path, query)))
     }
 
     /// Deletes an image
@@ -90,21 +90,20 @@ impl<'a, 'b, D, T> Image<'a, 'b, D, T>
                 .collect()
         }
 
-        Box::new(parse_to_trait::<Value>(self.docker.delete(path, query))
+        parse_to_trait::<Value>(self.interact.delete(path, query))
             .and_then(|val|
                 match val {
                     Value::Array(xs) => future::result(parse_array(xs)),
                     _ => unreachable!(),
                 }
             )
-        )
     }
 
     /// Export this image to a tarball
-    pub fn export(&self) -> Box<Future<Item=(), Error=Error> + Send> {
+    pub fn export(&self) -> impl Future<Item=(), Error=Error> + Send {
         let path = Some(format!("/images/{}/export", self.name));
         let query : Option<&str>  = None;
 
-        Box::new(parse_to_file(self.docker.get(path, query), "antonn"))
+        Box::new(parse_to_file(self.interact.get(path, query), "antonn"))
     }
 }

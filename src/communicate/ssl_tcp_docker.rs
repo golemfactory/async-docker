@@ -11,16 +11,22 @@ use util::docker::Docker;
 use hyper::Uri;
 use util::docker::DockerTrait;
 use errors::Result;
+use Error;
 use std::path::Path;
 use std::env;
 use hyper::Client;
 use communicate::DockerTrait;
 use communicate::docker::Docker;
+use std::sync::Arc;
+use hyper::client::HttpConnector;
+use hyper::Body;
 
-pub type TcpSSLDocker = Docker<HttpsConnector<OpensslClient>>;
+pub type TcpSSLDocker = Docker<HttpsConnector<HttpConnector>>;
 
-impl DockerTrait for Docker<HttpsConnector<OpensslClient>> {
-    type Connector = HttpsConnector<OpensslClient>;
+const THREADS: usize = 1;
+
+impl DockerTrait for Docker<HttpsConnector<HttpConnector>> {
+    type Connector = HttpsConnector<HttpConnector>;
 
     fn new(host: Uri) -> Result<Self> {
         let Some(certs) = env::var("DOCKER_CERT_PATH").ok()?;
@@ -40,15 +46,21 @@ impl DockerTrait for Docker<HttpsConnector<OpensslClient>> {
             connector.set_ca_file(&Path::new(ca))?;
         }
 
-        let ssl = OpensslClient::from(connector.build());
-        Client::with_connector(HttpsConnector::new(ssl))
+        let mut http = HttpConnector::new(THREADS);
+        http.enforce_http(false);
+
+        let connector = HttpsConnector::<HttpConnector>::with_connector(http, connector)
+            .map_err(Error::from)?;
+
+        let client = Client::builder().build(connector);
+
+
+        Ok(TcpSSLDocker {
+            interact: Arc::new(interact: Interact::new(client, host))
+        })
     }
 
-    fn host(&self) -> &Uri {
-        &self.host
-    }
-
-    fn client(&self) -> &Client<Self::Connector> {
-        &self.client
+    fn interact(&self) -> Self::Interact {
+        self.interact.clone()
     }
 }

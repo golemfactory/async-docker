@@ -169,12 +169,12 @@ impl<T> Stream for TtyDecoder<T> where T : Stream<Item=Chunk>, Error : From<T::E
     }
 }
 
-fn decode<F>(f : F) -> impl Stream<Item=(u32, Chunk), Error=Error> where F : Stream<Item=Chunk, Error=Error> {
+pub fn decode<F>(f : F) -> impl Stream<Item=(u32, Chunk), Error=Error> where F : Stream<Item=Chunk, Error=Error> {
     TtyDecoder { state: State::Header, buf: VecDeque::new(), inner: f}
 }
 
 /*
-// https://docs.docker.com/engine/api/v1.26/#operation/ContainerAttach
+// https://docs.interact.com/engine/api/v1.26/#operation/ContainerAttach
 pub fn tty(stream: ResponseFutureWrapper)
         -> Box<Stream<Item=String, Error=Error> + Send>
 {

@@ -123,7 +123,7 @@ impl<'a, T> Images<'a, T> {
             path.push(query);
         }
 
-        let raw = self.docker.get(&path.join("?"))?;
+        let raw = self.interact.get(&path.join("?"))?;
         ::serde_json::from_str::<Vec<ImageRep>>(&raw).map_err(Error::from)
     }
 
@@ -135,7 +135,7 @@ impl<'a, T> Images<'a, T> {
     /// Search for docker images by term
     pub fn search(&self, term: &str) -> Result<Vec<SearchResult>> {
         let query = form_urlencoded::serialize(vec![("term", term)]);
-        let raw = self.docker.get(&format!("/images/search?{}", query)[..])?;
+        let raw = self.interact.get(&format!("/images/search?{}", query)[..])?;
 
         ::serde_json::from_str::<Vec<SearchResult>>(&raw).map_err(Error::from)
     }
@@ -167,7 +167,7 @@ impl<'a, T> Images<'a, T> {
     }
 
     // pub fn import(self, tarball: Box<Read>) -> Result<()> {
-    //  self.docker.post
+    //  self.interact.post
     // }
 }
 */
@@ -195,7 +195,7 @@ impl<'a, T> Containers<'a, T> {
             path.push(query)
         }
 
-        let raw = self.docker.get(&path.join("?"))?;
+        let raw = self.interact.get(&path.join("?"))?;
         ::serde_json::from_str::<Vec<ContainerRep>>(&raw).map_err(Error::from)
     }
 
@@ -271,7 +271,7 @@ impl<'a, T> Networks<'a, T> {
         let mut bytes = data.as_bytes();
         let path = vec!["/networks/create".to_owned()];
 
-        self.docker.post(&path.join("?"), &mut bytes)
+        self.interact.post(&path.join("?"), &mut bytes)
             .and_then(|response|
                 ::serde_json::from_reader::<NetworkCreateInfo>(
                     response.into_body().poll_data()).map_err(Error::from))
@@ -303,14 +303,14 @@ impl<'a, 'b, T> Network<'a, 'b, T> {
 
     /// Inspects the current docker network instance's details
     pub fn inspect(&self) -> Box<Future<Item=NetworkInfo, Error=Error>> {
-        self.docker.get(&format!("/networks/{}", self.id)[..])?
+        self.interact.get(&format!("/networks/{}", self.id)[..])?
             .and_then(|response|
                 ::serde_json::from_str::<NetworkInfo>(response?).map_err(Error::from))
     }
 
     /// Delete the network instance
     pub fn delete(&self) -> Box<Future<Item=(), Error=Error>> {
-        self.docker.delete(&format!("/networks/{}", self.id)[..])?
+        self.interact.delete(&format!("/networks/{}", self.id)[..])?
             .and_then(|_| () )
     }
 

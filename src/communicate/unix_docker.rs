@@ -19,9 +19,11 @@ use http::uri::Scheme;
 use std::str::FromStr;
 
 
+use transport::interact::Interact;
 use docker::Docker;
 use docker::DockerTrait;
 use errors::Result;
+use std::sync::Arc;
 
 pub struct UnixConnector {
     handle: Handle,
@@ -63,21 +65,17 @@ impl DockerTrait for Docker<UnixConnector> {
         parts.scheme = Some(Scheme::from_str("http").unwrap());
         let host = Uri::from_parts(parts).unwrap();
 
-        Ok(UnixDocker {
+        Ok(UnixDocker {interact: Arc::new( Interact {
             client: Client::builder().build(
                 UnixConnector {
                     handle: Handle::current(),
                     path: PathBuf::from(path),
                 }),
             host
-        })
+        })})
     }
 
-    fn host(&self) -> &Uri {
-        &self.host
-    }
-
-    fn client(&self) -> &Client<Self::Connector> {
-        &self.client
+    fn interact(&self) -> Arc<Interact<Self::Connector>> {
+        self.interact.clone()
     }
 }

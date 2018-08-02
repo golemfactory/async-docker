@@ -532,9 +532,9 @@ impl ExecContainerOptions {
         ExecContainerOptionsBuilder::new()
     }
 
-    /// serialize options as a string. returns None if no options are defined
+    /// serialize options as a string.
     pub fn serialize(&self) -> Result<String> {
-        de_to_string(&self).map_err(Error::from)
+        de_to_string(&self.params).map_err(Error::from)
     }
 }
 

@@ -28,29 +28,29 @@ use build::ExecContainerOptions;
 use serde_json::Value;
 use errors::ErrorKind as EK;
 use transport::tty;
+use futures::future;
+use hyper::Chunk;
+use transport::interact::Interact;
+use std::sync::Arc;
 
 /// Interface for accessing and manipulating a docker container
-pub struct Container<'a, 'b, D, T>
+pub struct Container<'b, T>
     where
-        D: 'a + DockerTrait<Connector=T>,
         T: 'static + Connect,
 {
-    docker: &'a D,
+    interact: Arc<Interact<T>>,
     id: Cow<'b, str>,
 }
 
-impl<'a, 'b, D, T> Container<'a, 'b, D, T>
+impl<'b, T> Container<'b, T>
     where
-        D: DockerTrait<Connector=T>,
         T: 'static + Connect,
 {
     /// Exports an interface exposing operations against a container instance
-    pub fn new<S>(docker: &'a D, id: S) -> Container<'a, 'b, D, T>
-        where
-            S: Into<Cow<'b, str>>,
+    pub(crate) fn new(interact: Arc<Interact<T>>, id: Cow<'b, str>) -> Container<'b, T>
     {
         Container {
-            docker,
+            interact,
             id: id.into(),
         }
     }
@@ -65,7 +65,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
         let path = Some(format!("/containers/{}/json", self.id));
         let query : Option<&str> = None;
 
-        Box::new(parse_to_trait::<ContainerDetails>(self.docker.get(path, query)))
+        Box::new(parse_to_trait::<ContainerDetails>(self.interact.get(path, query)))
     }
 
     /// Returns a `top` view of information about the container process
@@ -73,7 +73,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
         let path = Some(format!("/containers/{}/top", self.id));
         let query = build_simple_query("ps_args", psargs);
 
-        Box::new(parse_to_trait::<Top>(self.docker.get(path, query)))
+        Box::new(parse_to_trait::<Top>(self.interact.get(path, query)))
     }
 
     /// Returns a stream of logs emitted but the container instance
@@ -81,7 +81,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
         let path = Some(format!("/containers/{}/logs", self.id));
         let query = opts.serialize();
 
-        Box::new(parse_to_lines(self.docker.get(path, query)))
+        Box::new(parse_to_lines(self.interact.get(path, query)))
     }
 
     /// Returns a set of changes made to the container instance
@@ -89,7 +89,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
         let path = Some(format!("/containers/{}/changes", self.id));
         let query : Option<&str>  = None;
 
-        Box::new(parse_to_trait::<Vec<Change>>(self.docker.get(path, query)))
+        Box::new(parse_to_trait::<Vec<Change>>(self.interact.get(path, query)))
     }
 
     /// Exports the current docker container into a tarball
@@ -97,7 +97,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
         let path = Some(format!("/containers/{}/export", self.id));
         let query : Option<&str>  = None;
 
-        Box::new(parse_to_file(self.docker.get(path, query), "antonn"))
+        Box::new(parse_to_file(self.interact.get(path, query), "antonn"))
     }
 
     /// Returns a stream of stats specific to this container instance
@@ -105,7 +105,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
         let path = Some(format!("/containers/{}/stats", self.id));
         let query : Option<&str> = None;
 
-        Box::new(parse_to_stream::<Stats>(self.docker.get(path, query)))
+        Box::new(parse_to_stream::<Stats>(self.interact.get(path, query)))
     }
 
     /// Start the container instance
@@ -114,7 +114,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
         let query : Option<&str> = None;
         let body : Option<Body>  = None;
 
-        Box::new(status_code(self.docker.post(path, query, body)))
+        Box::new(status_code(self.interact.post(path, query, body)))
     }
 
     /// Stop the container instance
@@ -125,7 +125,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
         let body : Option<Body>  = None;
 
 
-        Box::new(status_code(self.docker.post(path, query, body)))
+        Box::new(status_code(self.interact.post(path, query, body)))
     }
 
     /// Restart the container instance
@@ -135,7 +135,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
             build_simple_query("t", wait.map(|w| w.as_secs().to_string()));
         let body : Option<Body>  = None;
 
-        Box::new(status_code(self.docker.post(path, query, body)))
+        Box::new(status_code(self.interact.post(path, query, body)))
     }
 
     /// Kill the container instance
@@ -145,7 +145,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
             build_simple_query("signal", signal.map(|sig| sig));
         let body : Option<Body>  = None;
 
-        Box::new(status_code(self.docker.post(path, query, body)))
+        Box::new(status_code(self.interact.post(path, query, body)))
     }
 
     /// Rename the container instance
@@ -155,7 +155,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
             build_simple_query("name", Some(name));
         let body : Option<Body>  = None;
 
-        Box::new(status_code(self.docker.post(path, query, body)))
+        Box::new(status_code(self.interact.post(path, query, body)))
     }
 
     /// Pause the container instance
@@ -164,7 +164,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
         let query : Option<String> = None;
         let body : Option<Body>  = None;
 
-        Box::new(status_code(self.docker.post(path, query, body)))
+        Box::new(status_code(self.interact.post(path, query, body)))
     }
 
     /// Unpause the container instance
@@ -173,7 +173,7 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
         let query: Option<String> = None;
         let body: Option<Body> = None;
 
-        Box::new(status_code(self.docker.post(path, query, body)))
+        Box::new(status_code(self.interact.post(path, query, body)))
     }
 
     /// Wait until the container stops
@@ -182,96 +182,66 @@ impl<'a, 'b, D, T> Container<'a, 'b, D, T>
         let query: Option<String> = None;
         let body: Option<Body> = None;
 
-        Box::new(parse_to_trait::<Exit>(self.docker.post(path, query, body)))
+        Box::new(parse_to_trait::<Exit>(self.interact.post(path, query, body)))
     }
 
     /// Delete the container instance
     ///
     /// Use remove instead to use the force/v options.
-    pub fn delete(&self) -> Box<Future<Item=StatusCode, Error=Error> + Send> {
+    pub fn delete(&self) -> impl Future<Item=StatusCode, Error=Error> + Send {
         let path = Some(format!("/containers/{}", self.id));
         let query: Option<String> = None;
         let body: Option<Body> = None;
 
-        Box::new(status_code(self.docker.delete(path, query)))
+        status_code(self.interact.delete(path, query))
     }
 
     /// Delete the container instance (todo: force/v)
-    pub fn remove(&self, opts: &RmContainerOptions) -> Box<Future<Item=StatusCode, Error=Error> + Send> {
+    pub fn remove(&self, opts: &RmContainerOptions) -> impl Future<Item=StatusCode, Error=Error> + Send {
         let path = Some(format!("/containers/{}", self.id));
         let query = opts.serialize();
         let body: Option<Body> = None;
 
-        Box::new(status_code(self.docker.delete(path, query)))
+        status_code(self.interact.delete(path, query))
     }
-/*
+
     /// Exec the specified command in the container
-    pub fn exec(&self, opts: &ExecContainerOptions) -> Box<Future<Item=Tty, Error=Error> + Send> {
-        let path = Some(format!("/containers/{}/exec", self.id));
-        let query: Option<String> = opts.serialize();
-        let body = opts.serialize().ok().map(as_bytes).map(Body::from);
-
-
-        match self.docker.post(s, Some(&mut bytes)) {
-            Err(e) => Err(e),
-            Ok(res) => {
-                let data = "{}";
-                let mut bytes = data.as_bytes();
-                let json = ::serde_json::from_str::<Value>(res.as_str())?;
-
-                if let Value::Object(ref _obj) = json {
-                    let id = json
-                        .get("Id")
-                        .ok_or_else(|| EK::JsonFieldMissing("Id"))
-                        .map_err(Error::from_kind)?
-                        .as_str()
-                        .ok_or_else(|| EK::JsonTypeError("Id", "String"))
-                        .map_err(Error::from_kind)?;
-
-                    let post = &format!("/exec/{}/start", id);
-
-                    self.docker
-                        .stream_post(&post[..], Some(&mut bytes))
-                        .map(|stream| Tty::new(stream))
-                } else {
-                    Err(Error::from_kind(EK::JsonTypeError("<anonymous>", "Object")))
-                }
-            }
-        }
-    }
-*/
-    /*
-    /// Exec the specified command in the container
-    pub fn exec(&self, opts: &ExecContainerOptions) -> Box<Stream<Item=String, Error=Error> + Send> {
+    pub fn exec(&self, opts: &ExecContainerOptions) -> impl Stream<Item=(u32, Chunk), Error=Error> + Send {
         let path = Some(format!("/containers/{}/exec", self.id));
         let query: Option<String> = None;
-        let body = opts.serialize().ok()
-            .map(|a| str::as_bytes(&a))
-            .map(Body::from);
+        let body = opts.serialize().ok();
+        let interact = self.interact.clone();
 
 
-        parse_to_trait::<Value>(self.docker.delete(path, query))
-            .and_then(|value| {
-                if let Value::Object(ref _obj) = value {
-                    let id = value
+        parse_to_trait::<Value>(self.interact.post(path, query, body))
+            .and_then(|val| {
+                match val {
+                    Value::Object(obj) => future::result(obj
                         .get("Id")
-                        .ok_or_else(|| EK::JsonFieldMissing("Id"))
-                        .map_err(Error::from_kind)?
-                        .as_str()
-                        .ok_or_else(|| EK::JsonTypeError("Id", "String"))
-                        .map_err(Error::from_kind)?;
-
-                    let path = Some(format!("/exec/{}/start", id));
-                    let query : Option<String> = None;
-                    let body : Option<Body> = None;
-
-                    Ok(tty(self.docker.post(path, query, body)))
-                } else {
-                    Err(Error::from_kind(EK::JsonTypeError("<anonymous>", "Object")))
+                        .ok_or(Error::from(EK::JsonFieldMissing("Id")))
+                        .and_then(|val| val.as_str()
+                            .ok_or(Error::from(EK::JsonTypeError("Id", "String"))))
+                        .map(|a| a.to_string())),
+                    _ => future::err(Error::from(EK::JsonTypeError("<anonymous>", "Object")))
                 }
             })
+            .and_then(move |id| {
+                let path = Some(format!("/containers/{}/start", id));
+                let query : Option<String> = None;
+                let body : Option<Body> = None;
+
+                let stream =
+                    interact.post(path, query, body)
+                    .and_then(|future| future.map_err(Error::from))
+                    .and_then(|response| {
+                        future::ok(tty::decode(response.into_body().map_err(Error::from)))
+                    });
+
+                stream
+            })
+            .flatten_stream()
     }
-    */
+
     /*
     pub fn archive_put(&self, opts: &ContainerArchiveOptions) -> Result<()> {
         let mut path = vec![(&format!("/containers/{}/archive", self.id)).to_owned()];

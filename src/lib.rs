@@ -1,4 +1,4 @@
-//! Shiplift is a multi-transport utility for maneuvering [docker](https://www.docker.com/) containers
+//! Shiplift is a multi-transport utility for maneuvering [docker](https://www.interact.com/) containers
 //!
 //! # examples
 //!
