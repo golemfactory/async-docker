@@ -6,7 +6,7 @@ use self::serde::Serialize;
 use self::serde_json::map::Map;
 use self::serde_json::Number;
 use self::serde_json::Value;
-use self::serde_json::to_string as de_to_string;
+use self::serde_json::to_string as ser_to_string;
 use self::serde_json::to_value as de_to_value;
 
 use std::cmp::Eq;
@@ -261,7 +261,7 @@ impl ContainerListOptionsBuilder {
         // structure is a a json encoded object mapping string keys to a list
         // of string values
         self.params
-            .insert("filters", de_to_string(&param).unwrap());
+            .insert("filters", ser_to_string(&param).unwrap());
         self
     }
 
@@ -334,7 +334,7 @@ impl ContainerOptions {
 
     /// serialize options as a string. returns None if no options are defined
     pub fn serialize(&self) -> Result<String> {
-        Ok(de_to_string(&de_to_value(self)?)?)
+        Ok(ser_to_string(&de_to_value(self)?)?)
     }
 
     pub fn parse_from<'a, K, V>(&self, params: &'a HashMap<K, V>, body: &mut Value)
@@ -532,9 +532,10 @@ impl ExecContainerOptions {
         ExecContainerOptionsBuilder::new()
     }
 
-    /// serialize options as a string.
-    pub fn serialize(&self) -> Result<String> {
-        de_to_string(&self.params).map_err(Error::from)
+    /// serialize options to a string.
+    pub fn serialize(&self) -> Option<String> {
+        let a = ser_to_string(&self).map_err(Error::from);
+        Some(a.expect("Exec options serialization failed"))
     }
 }
 
@@ -785,7 +786,7 @@ impl EventsOptionsBuilder {
             };
         }
         self.params
-            .insert("filters", de_to_string(&params).unwrap());
+            .insert("filters", ser_to_string(&params).unwrap());
         self
     }
 
@@ -930,7 +931,7 @@ impl ImageListOptionsBuilder {
         // structure is a a json encoded object mapping string keys to a list
         // of string values
         self.params
-            .insert("filters", de_to_string(&param).unwrap());
+            .insert("filters", ser_to_string(&param).unwrap());
         self
     }
 
@@ -1028,7 +1029,7 @@ impl NetworkCreateOptions {
 
     /// serialize options as a string. returns None if no options are defined
     pub fn serialize(&self) -> Result<String> {
-        de_to_string(&self).map_err(Error::from)
+        ser_to_string(&self).map_err(Error::from)
     }
 
     pub fn parse_from<'a, K, V>(
@@ -1117,7 +1118,7 @@ impl ContainerConnectionOptions {
 
     /// serialize options as a string. returns None if no options are defined
     pub fn serialize(&self) -> Result<String> {
-        de_to_string(&self).map_err(Error::from)
+        ser_to_string(&self).map_err(Error::from)
     }
 
     pub fn parse_from<'a, K, V>(

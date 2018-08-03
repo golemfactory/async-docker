@@ -4,69 +4,68 @@ extern crate tokio;
 extern crate futures;
 extern crate http;
 
-use std::str::FromStr;
-
-use shiplift::Container;
-use shiplift::Docker;
+use shiplift::communicate::Container;
 use shiplift::UnixDocker;
 use shiplift::DockerTrait;
-use shiplift::rep::Info;
 use hyper::rt::Future;
 use futures::future;
-use std::io;
-use std::io::Write;
-use tokio::timer::Deadline;
-use tokio::timer::Delay;
 use std::thread;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use tokio::executor::Executor;
-use shiplift::structs::UnixConnector;
+use shiplift::build::LogsOptions;
 use futures::Stream;
-use futures::Async;
+use tokio::reactor::Reactor;
+use tokio::executor::current_thread::CurrentThread;
+use futures::executor::Spawn;
+use tokio::executor::DefaultExecutor;
+use tokio::executor::Executor;
+
 
 fn main() {
     let uri : http::uri::Uri = "unix://var/run/docker.sock".parse().unwrap();
 
     println!("{:?}", uri);
 
-    let docker = UnixDocker::new(uri).unwrap();
+    let work = future::lazy(||  {
+        let docker = UnixDocker::new(uri).unwrap();
 
 
-    let opts = shiplift::builder::EventsOptions::default();
-    //let mut a = docker.events(&opts);
-/*
-    let a = future.and_then(|stream| {
-        stream.
-            for_each(|b| {
-                println!("wrote message; success={:?}", b);
-            });
-        Ok(())
-    });
-*/
-    let container = Container::new(docker, "b89d18ebad39");
-    let mut a = container.stats();
-    let do_it = futures::lazy(|| {
-        // existing loop goes here
-        println!("start");
-        a
-            .for_each(|b| {
-                println!("wrote message; success={:?}", b);
-                Ok(())
-            }).and_then(|_| Ok(println!("done")))
+        //let _opts = shiplift::build::EventsOptions::default();
+        let options = shiplift::build::ExecContainerOptions::builder()
+            .cmd(vec![
+                "bash",
+                "-c",
+                "echo -n \"echo VAR=$VAR on stdout\"; echo -n \"echo VAR=$VAR on stderr\" >&2",
+            ])
+            .env(vec!["VAR=value"])
+            .attach_stdout(true)
+            .attach_stderr(true)
+            .build();
+        //let mut a = docker.container("bda315b5d0ba").stats();
+
+        let reactor = Reactor::new();
+
+        docker.container("34be0d2f530f").exec(&options)
+            .for_each(|a| Ok(println!("{:?}", a)))
             .map_err(|_| ())
-
     });
 
-    let rt = Runtime::new().unwrap();
-    let executor = rt.executor();
+
+    //let spawn = thread.spawn(quer);
+
+    //spawn.turn(None);
+    //let rt = Runtime::new().unwrap();
+    //let executor = rt.executor();
 
     // Spawn a new task that processes the socket:
-    let _ = executor.spawn(do_it);
+    //let _ = executor.spawn(quer);
+
+    //thread::sleep(Duration::from_millis(20000000));
 
 
-    thread::sleep(Duration::from_millis(20000000));
-    //tokio::run(c);
-    //println!("info {:?}", docker.info().unwrap());
 
+    //tokio::runtime::run(future::ok(println!("dsad")).and_then(|_| future::ok(println!("dhags"))));
+    tokio::runtime::run(work);
+
+    println!("dasjd")
 }

@@ -209,12 +209,16 @@ impl<'b, T> Container<'b, T>
     pub fn exec(&self, opts: &ExecContainerOptions) -> impl Stream<Item=(u32, Chunk), Error=Error> + Send {
         let path = Some(format!("/containers/{}/exec", self.id));
         let query: Option<String> = None;
-        let body = opts.serialize().ok();
+        let body = opts.serialize();
         let interact = self.interact.clone();
+
+        println!("{:?}", body);
 
 
         parse_to_trait::<Value>(self.interact.post(path, query, body))
             .and_then(|val| {
+
+                println!(">>> {:?}", val);
                 match val {
                     Value::Object(obj) => future::result(obj
                         .get("Id")
