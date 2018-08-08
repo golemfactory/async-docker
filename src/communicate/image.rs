@@ -48,7 +48,7 @@ impl<'b, T> Image<'b, T>
         let path = Some(format!("/images/{}/json", self.name));
         let query : Option<&str>  = None;
 
-        Box::new(parse_to_trait::<ImageDetails>(self.interact.get(path, query)))
+        parse_to_trait::<ImageDetails>(self.interact.get(path, query))
     }
 
     /// Lists the history of the images set of changes
@@ -56,7 +56,7 @@ impl<'b, T> Image<'b, T>
         let path = Some(format!("/images/{}/history", self.name));
         let query : Option<&str>  = None;
 
-        Box::new(parse_to_trait::<History>(self.interact.get(path, query)))
+        parse_to_trait::<History>(self.interact.get(path, query))
     }
 
     /// Deletes an image
@@ -104,6 +104,6 @@ impl<'b, T> Image<'b, T>
         let path = Some(format!("/images/{}/export", self.name));
         let query : Option<&str>  = None;
 
-        Box::new(parse_to_file(self.interact.get(path, query), "antonn"))
+        parse_to_file(self.interact.get(path, query), "antonn")
     }
 }

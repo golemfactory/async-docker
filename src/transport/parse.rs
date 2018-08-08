@@ -63,11 +63,13 @@ pub(crate) fn build_request<B>(method: Method, uri: Uri, body: B)
 
 pub(crate) fn status_code(future: ResponseFutureWrapper) -> impl Future<Item=StatusCode, Error=Error> + Send {
     future
-        .and_then(|w| w
-            .and_then(|response|
-                future::ok(response.status()))
-            .map_err(Error::from)
-        )
+        .and_then(|w| w.map_err(Error::from))
+        .and_then(|response| {
+
+            debug!("GET");
+            future::ok(response.status())
+        })
+        .map_err(Error::from)
 }
 
 

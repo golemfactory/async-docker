@@ -62,9 +62,9 @@ pub trait DockerTrait
     }
     */
     /// Exports an interface for interacting with docker containers
-    fn container<'b, S>(&self, id: S) -> Container<'b, Self::Connector>
+    fn container<S>(&self, id: S) -> Container<Self::Connector>
         where
-            S: Into<Cow<'b, str>>
+            S: Into<Cow<'static, str>>
     {
         let interact = self.interact().clone();
         Container::new(interact, id.into())

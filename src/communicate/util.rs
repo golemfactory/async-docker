@@ -141,7 +141,7 @@ impl<'a, T> Images<'a, T> {
     }
 
     /// Pull and create a new docker images from an existing image
-    pub fn pull(&self, opts: &PullOptions) -> Box<ResponseFuture> {
+    pub fn pull(&self, opts: &PullOptions) -> ResponseFuture> {
         let mut path = vec!["/images/create".to_owned()];
 
         if let Some(query) = opts.serialize() {
@@ -154,7 +154,7 @@ impl<'a, T> Images<'a, T> {
 
     /// exports a collection of named images,
     /// either by name, name:tag, or image id, into a tarball
-    pub fn export(&self, names: Vec<&str>) -> Box<ResponseFuture> {
+    pub fn export(&self, names: Vec<&str>) -> ResponseFuture> {
         let params = names
             .iter()
             .map(|n| ("names", *n))
@@ -166,7 +166,7 @@ impl<'a, T> Images<'a, T> {
             .stream_get(&format!("/images/get?{}", query)[..])
     }
 
-    // pub fn import(self, tarball: Box<Read>) -> Result<()> {
+    // pub fn import(self, tarball: Read>) -> Result<()> {
     //  self.interact.post
     // }
 }
@@ -237,7 +237,7 @@ impl<'a, T> Networks<'a, T> {
 
     /// List the docker networks on the current docker host
     pub fn list(&self, opts: &NetworkListOptions)
-            -> Box<Future<Item=Vec<NetworkInfo>, Error=Error>> {
+            -> Future<Item=Vec<NetworkInfo>, Error=Error>> {
         let mut path = vec!["/networks".to_owned()];
 
         if let Some(query) = opts.serialize() {
@@ -252,12 +252,12 @@ impl<'a, T> Networks<'a, T> {
             .and_then(|body | {
                 let vec = body.iter().cloned().collect();
                 let stringify = String::from_utf8(vec).map_err(Error::from)?;
-                println!("{}", stringify);
+                debug!("{}", stringify);
                 ::serde_json::from_str::<Vec<NetworkInfo>>(&stringify)
                     .map_err(Error::from)
             });
 
-        Box::new(res)
+        res)
     }
 
     /// Returns a reference to a set of operations available to a specific network instance
@@ -266,7 +266,7 @@ impl<'a, T> Networks<'a, T> {
     }
 
     pub fn create(&'a self, opts: &NetworkCreateOptions)
-            -> Box<Future<Item=NetworkCreateInfo, Error=Error>> {
+            -> Future<Item=NetworkCreateInfo, Error=Error>> {
         let data = opts.serialize();
         let mut bytes = data.as_bytes();
         let path = vec!["/networks/create".to_owned()];
@@ -302,32 +302,32 @@ impl<'a, 'b, T> Network<'a, 'b, T> {
     }
 
     /// Inspects the current docker network instance's details
-    pub fn inspect(&self) -> Box<Future<Item=NetworkInfo, Error=Error>> {
+    pub fn inspect(&self) -> Future<Item=NetworkInfo, Error=Error>> {
         self.interact.get(&format!("/networks/{}", self.id)[..])?
             .and_then(|response|
                 ::serde_json::from_str::<NetworkInfo>(response?).map_err(Error::from))
     }
 
     /// Delete the network instance
-    pub fn delete(&self) -> Box<Future<Item=(), Error=Error>> {
+    pub fn delete(&self) -> Future<Item=(), Error=Error>> {
         self.interact.delete(&format!("/networks/{}", self.id)[..])?
             .and_then(|_| () )
     }
 
     /// Connect container to network
     pub fn connect(&self, opts: &ContainerConnectionOptions)
-            -> Box<Future<Item=(), Error=Error>> {
+            -> Future<Item=(), Error=Error>> {
         self.do_connection("connect", opts)
     }
 
     /// Disconnect container to network
     pub fn disconnect(&self, opts: &ContainerConnectionOptions)
-            -> Box<Future<Item=(), Error=Error>> {
+            -> Future<Item=(), Error=Error>> {
         self.do_connection("disconnect", opts)
     }
 
     fn do_connection(&self, segment: &str, opts: &ContainerConnectionOptions)
-            -> Box<Future<Item=(), Error=Error>> {
+            -> Future<Item=(), Error=Error>> {
         let data = opts.serialize()?;
         let mut bytes = data.as_bytes();
 

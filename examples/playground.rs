@@ -23,15 +23,13 @@ use tokio::executor::Executor;
 
 fn main() {
     let uri : http::uri::Uri = "unix://var/run/docker.sock".parse().unwrap();
-
     println!("{:?}", uri);
 
     let work = future::lazy(||  {
         let docker = UnixDocker::new(uri).unwrap();
 
-
         //let _opts = shiplift::build::EventsOptions::default();
-        let options = shiplift::build::ExecContainerOptions::builder()
+        let options = shiplift::ExecContainerOptions::builder()
             .cmd(vec![
                 "bash",
                 "-c",
@@ -45,27 +43,12 @@ fn main() {
 
         let reactor = Reactor::new();
 
-        docker.container("34be0d2f530f").exec(&options)
+        docker
+            .container("c44b472a64bc")
+            .exec(&options)
             .for_each(|a| Ok(println!("{:?}", a)))
-            .map_err(|_| ())
+            .map_err(|e| println!("{:?}", e))
     });
 
-
-    //let spawn = thread.spawn(quer);
-
-    //spawn.turn(None);
-    //let rt = Runtime::new().unwrap();
-    //let executor = rt.executor();
-
-    // Spawn a new task that processes the socket:
-    //let _ = executor.spawn(quer);
-
-    //thread::sleep(Duration::from_millis(20000000));
-
-
-
-    //tokio::runtime::run(future::ok(println!("dsad")).and_then(|_| future::ok(println!("dhags"))));
     tokio::runtime::run(work);
-
-    println!("dasjd")
 }

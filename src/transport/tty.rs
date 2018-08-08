@@ -97,11 +97,16 @@ struct TtyDecoder<T> where T : Stream<Item=Chunk> {
 impl<T> TtyDecoder<T> where T : Stream<Item=Chunk> {
 
     fn eat_buffer(&mut self) -> Poll<Option<(u32,Chunk)>, Error> {
+
+        debug!(">>> Eat");
+        debug!("<< {:?}", self.state);
         if let State::Header = self.state {
+            debug!(">>> HEADER");
+            debug!("Buff: {:?}", self.buf);
             if self.buf.len()>=8 {
                 {
                     let header: Vec<u8> = self.buf.drain(0..8).collect();
-
+                    debug!("{:?}", header);
                     let size = Cursor::new(&header[4..8])
                         .read_u32::<BigEndian>()
                         .unwrap() as usize;
@@ -117,12 +122,15 @@ impl<T> TtyDecoder<T> where T : Stream<Item=Chunk> {
         }
 
         if let State::Body { message_size, message_type } = self.state {
+            debug!(">>> BODY");
+            debug!("Buff: {:?}", self.buf);
             if self.buf.len() >= message_size {
                 let chunk : Vec<u8> = self.buf.drain(0..message_size).collect();
                 self.state = State::Header;
                 return Ok(Async::Ready(Some((message_type, chunk.into()))))
             }
             else {
+                debug!(">>> Not ready");
                 return Ok(Async::NotReady)
             }
         }
@@ -139,6 +147,7 @@ impl<T> Stream for TtyDecoder<T> where T : Stream<Item=Chunk>, Error : From<T::E
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         use bytes::*;
 
+        debug!(">>> Poll");
         loop {
             match self.eat_buffer() {
                 v @ Ok(Async::Ready(Some(_))) => return v,
@@ -146,11 +155,17 @@ impl<T> Stream for TtyDecoder<T> where T : Stream<Item=Chunk>, Error : From<T::E
                 _ => ()
             };
 
+            debug!(">>> Further");
             let it: Option<Chunk> = match self.inner.poll() {
-                Ok(Async::NotReady) => return Ok(Async::NotReady),
+                Ok(Async::NotReady) => {
+                    debug!("not_ready");
+                    return Ok(Async::NotReady)
+                },
                 Ok(Async::Ready(item)) => item,
                 Err(e) => return Err(e.into())
             };
+
+            debug!(">>> Ready");
 
             if let Some(chunk) = it {
                 for b in chunk {
@@ -158,6 +173,8 @@ impl<T> Stream for TtyDecoder<T> where T : Stream<Item=Chunk>, Error : From<T::E
                 }
             }
             else {
+                debug!(">>> {}", self.buf.len());
+                debug!(">>> {:?}", self.state);
                 if self.buf.len() == 0 {
                     return Ok(Async::Ready(None))
                 }
@@ -169,23 +186,8 @@ impl<T> Stream for TtyDecoder<T> where T : Stream<Item=Chunk>, Error : From<T::E
     }
 }
 
-pub fn decode<F>(f : F) -> impl Stream<Item=(u32, Chunk), Error=Error> where F : Stream<Item=Chunk, Error=Error> {
-    TtyDecoder { state: State::Header, buf: VecDeque::new(), inner: f}
+pub fn decode<F>(mut stream : F) -> impl Stream<Item=(u32, Chunk), Error=Error> where F : Stream<Item=Chunk, Error=Error> {
+    debug!(">>> Decode");
+
+    TtyDecoder { state: State::Header, buf: VecDeque::new(), inner: stream }
 }
-
-/*
-// https://docs.interact.com/engine/api/v1.26/#operation/ContainerAttach
-pub fn tty(stream: ResponseFutureWrapper)
-        -> Box<Stream<Item=String, Error=Error> + Send>
-{
-    let stream = stream
-        .and_then(|f| f.map_err(Error::from))
-        .and_then(|response| future::ok(response.into_body().forward()).map_err(Error::from))
-        .map_err(Error::from)
-        .flatten_stream().framed();
-
-    let reader = FramedRead::new(stream, PacketDecoder::new());
-
-    Box::new(reader)
-}
-*/
