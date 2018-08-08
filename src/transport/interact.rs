@@ -83,6 +83,18 @@ impl <I> Interact<I>
         self.request_with_header(path, query, body, method, None)
     }
 
+    pub fn put<A, B, C>(&self, path: Option<A>, query: Option<B>, body: Option<C>)
+                      -> ResponseFutureWrapper
+        where
+            A: AsRef<str> + Display + Default,
+            B: AsRef<str> + Display + Default,
+            C: Into<Body>,
+    {
+        let method = Method::PUT;
+
+        self.request_with_header(path, query, body, method, None)
+    }
+
     pub fn post<A, B>(&self, path: Option<A>, query: Option<B>)
                      -> ResponseFutureWrapper
         where

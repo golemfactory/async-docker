@@ -32,6 +32,8 @@ use futures::future;
 use hyper::Chunk;
 use transport::interact::Interact;
 use std::sync::Arc;
+use build::ContainerArchiveOptions;
+use tarball::tarball;
 
 /// Interface for accessing and manipulating a docker container
 pub struct Container<T>
@@ -290,25 +292,19 @@ impl<T> Container<T>
             .flatten_stream()
     }
 
-    /*
-    pub fn archive_put(&self, opts: &ContainerArchiveOptions) -> Result<()> {
-        let mut path = vec![(&format!("/containers/{}/archive", self.id)).to_owned()];
+    pub fn archive_put(&self, opts: &ContainerArchiveOptions)
+            -> impl Future<Item=StatusCode, Error=Error> + Send
+    {
+        let path = Some(format!("/containers/{}/archive", self.id));
+        let query: Option<String> = opts.serialize();
 
-        if let Some(query) = opts.serialize() {
-            path.push(query);
-        }
 
         let mut bytes = vec![];
+        tarball::dir(&mut bytes, &opts.local_path).unwrap();
+        let body = Some(Body::from(bytes));
 
-        tarball::dir(&mut bytes, &opts.local_path)?;
-
-        let body = Body::BufBody(&bytes[..], bytes.len());
-
-        self.docker
-            .stream_put(&path.join("?"), Some(body))
-            .map(|_| ())
+        status_code(self.interact.put(path, query, body))
     }
-    */
 
     // todo attach, attach/ws, copy
 }

@@ -1,2 +1,1 @@
-mod tarball;
-pub use self::tarball::*;
+pub mod tarball;
