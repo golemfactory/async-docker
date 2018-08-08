@@ -15,4 +15,4 @@ Add the following to your `Cargo.toml` file
 shiplift = { git = "https://github.com/destruktiw/shiplift", branch = "<name>" }
 ```
 
-<name> should be `async` or `refactor`.
+\<name\> should be `async` or `refactor`.
