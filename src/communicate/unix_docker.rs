@@ -21,13 +21,25 @@ use std::str::FromStr;
 
 use transport::interact::Interact;
 use docker::Docker;
-use docker::DockerTrait;
 use errors::Result;
 use std::sync::Arc;
+use communicate::docker::DockerApi;
+use std::marker::PhantomData;
 
-pub struct UnixConnector {
+pub struct UnixConnector
+{
     handle: Handle,
     path: PathBuf
+}
+
+impl UnixConnector {
+    pub(crate) fn new(handle: Handle, path: PathBuf) -> Self
+    {
+        Self {
+            handle,
+            path
+        }
+    }
 }
 
 impl Connect for UnixConnector {
@@ -52,29 +64,24 @@ impl Connect for UnixConnector {
     }
 }
 
-pub type UnixDocker = Docker<UnixConnector>;
+pub(crate) type UnixDocker = Docker<UnixConnector>;
 
-impl DockerTrait for Docker<UnixConnector> {
-    type Connector = UnixConnector;
-
-    fn new(host: Uri) -> Result<Self> {
+impl Docker<UnixConnector> {
+    pub(crate) fn new(host: Uri) -> Result<Box<DockerApi>>
+    {
         let path = format!("/{}{}", host.authority().unwrap(), host.path());
-        let mut parts = host.clone().into_parts();
+        let mut parts = host.into_parts();
         parts.authority = Some(Authority::from_str("v1.37").unwrap());
         parts.scheme = Some(Scheme::from_str("http").unwrap());
         let host = Uri::from_parts(parts).unwrap();
-
-        Ok(UnixDocker {interact: Arc::new( Interact {
-            client: Client::builder().build(
-                UnixConnector {
-                    handle: Handle::current(),
-                    path: PathBuf::from(path),
-                }),
+        let interact = Interact::new(
+            Client::builder().build(
+                UnixConnector::new(Handle::current(), PathBuf::from(path))
+            ),
             host
-        })})
-    }
+        );
 
-    fn interact(&self) -> Arc<Interact<Self::Connector>> {
-        self.interact.clone()
+        let docker = Self::new_inner(Arc::new(interact));
+        Ok(Box::new(docker))
     }
 }

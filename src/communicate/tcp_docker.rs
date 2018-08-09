@@ -3,23 +3,19 @@ use hyper::Uri;
 use hyper::Client;
 
 use errors::Result;
-use communicate::DockerTrait;
 use communicate::docker::Docker;
+use communicate::docker::DockerApi;
 use transport::interact::Interact;
 use std::sync::Arc;
+use std::marker::PhantomData;
 
-pub type TcpDocker = Docker<HttpConnector>;
+pub(super) type TcpDocker = Docker<HttpConnector>;
 
-impl DockerTrait for Docker<HttpConnector> {
-    type Connector = HttpConnector;
+impl Docker<HttpConnector> {
+    pub(crate) fn new(host: Uri) -> Result<Box<DockerApi>> {
+        let interact = Interact::new(Client::new(), host);
+        let docker = Self::new_inner(Arc::new(interact));
 
-    fn new(host: Uri) -> Result<Self> {
-        Ok(TcpDocker { interact: Arc::new(
-            Interact::new(Client::new(), host)
-        )})
-    }
-
-    fn interact(&self) -> Arc<Interact<Self::Connector>> {
-        self.interact.clone()
+        Ok(Box::new(docker))
     }
 }

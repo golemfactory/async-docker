@@ -1,5 +1,4 @@
 use futures;
-
 use std::mem::replace;
 use std::string::FromUtf8Error;
 

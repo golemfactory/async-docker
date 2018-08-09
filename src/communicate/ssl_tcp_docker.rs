@@ -20,6 +20,8 @@ use communicate::docker::Docker;
 use std::sync::Arc;
 use hyper::client::HttpConnector;
 use hyper::Body;
+use transport::interact::Interact;
+use communicate::docker::DockerApi;
 
 pub type TcpSSLDocker = Docker<HttpsConnector<HttpConnector>>;
 
@@ -28,7 +30,7 @@ const THREADS: usize = 1;
 impl DockerTrait for Docker<HttpsConnector<HttpConnector>> {
     type Connector = HttpsConnector<HttpConnector>;
 
-    fn new(host: Uri) -> Result<Self> {
+    fn new(host: Uri) -> Result<Box<DockerApi>> {
         let Some(certs) = env::var("DOCKER_CERT_PATH").ok()?;
 
         let cert = &format!("{}/cert.pem", certs);
@@ -55,12 +57,8 @@ impl DockerTrait for Docker<HttpsConnector<HttpConnector>> {
         let client = Client::builder().build(connector);
 
 
-        Ok(TcpSSLDocker {
-            interact: Arc::new(interact: Interact::new(client, host))
-        })
-    }
-
-    fn interact(&self) -> Self::Interact {
-        self.interact.clone()
+        let docker = Self::new_inner(Arc::new(Interact::new(client, host)));
+        Ok(Box::new(docker))
     }
 }
+

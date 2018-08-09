@@ -12,15 +12,97 @@ use hyper::client::connect::Connect;
 use futures::Future;
 use hyper::HeaderMap;
 use http::header::CONTENT_TYPE;
+use communicate::util::RequestArgs;
+use communicate::util::IntoRequestArgs;
+use http::header::CONNECTION;
+use http::header::HeaderValue;
+
+
+pub(crate) trait InteractApi
+{
+    fn request(&self, opts: RequestArgs, method: Method)
+        -> ResponseFutureWrapper;
+}
+
+impl InteractApi for Arc<InteractApi>
+{
+    fn request(&self, opts: RequestArgs, method: Method)
+               -> ResponseFutureWrapper
+    {
+        (**self).request(opts, method)
+    }
+}
+
+pub(crate) trait InteractApiExt
+{
+    fn get<'a, 'b, A>(&self, opts: A) -> ResponseFutureWrapper
+        where A: IntoRequestArgs<'a, 'b>;
+
+    fn put<'a, 'b, A>(&self, opts: A)
+           -> ResponseFutureWrapper
+        where A: IntoRequestArgs<'a, 'b>;
+
+    fn post<'a, 'b, A>(&self, opts: A)
+            -> ResponseFutureWrapper
+        where A: IntoRequestArgs<'a, 'b>;
+
+    fn post_json<'a, 'b, A>(&self, opts: A)
+                 -> ResponseFutureWrapper
+        where A: IntoRequestArgs<'a, 'b>;
+
+    fn delete<'a, 'b, A>(&self, opts: A) -> ResponseFutureWrapper
+        where A: IntoRequestArgs<'a, 'b>;
+}
+
+impl <T> InteractApiExt for T
+    where T: InteractApi
+{
+    fn get<'a, 'b, A>(&self, opts: A) -> ResponseFutureWrapper
+        where A: IntoRequestArgs<'a, 'b>
+    {
+        self.request(opts.into_request_args(), Method::GET)
+    }
+
+    fn put<'a, 'b, A>(&self, opts: A) -> ResponseFutureWrapper
+        where A: IntoRequestArgs<'a, 'b>
+    {
+        self.request(opts.into_request_args(), Method::PUT)
+    }
+
+    fn post<'a, 'b, A>(&self, opts: A) -> ResponseFutureWrapper
+        where A: IntoRequestArgs<'a, 'b>
+    {
+        self.request(opts.into_request_args(), Method::POST)
+    }
+
+    fn post_json<'a, 'b, A>(&self, opts: A) -> ResponseFutureWrapper
+        where A: IntoRequestArgs<'a, 'b>
+    {
+        let mut opts = opts.into_request_args();
+        #[cfg(target_os = "linux")]
+        opts.set_header(CONNECTION, HeaderValue::from_str("close")
+            .expect("Constant connection header values's parse failed"));
+        opts.set_header(CONTENT_TYPE, HeaderValue::from_str("application/json")
+            .expect("Constant content type header value's parse failed"));
+
+        self.request(opts, Method::POST)
+    }
+
+    fn delete<'a, 'b, A>(&self, opts: A) -> ResponseFutureWrapper
+        where A: IntoRequestArgs<'a, 'b>
+    {
+        self.request(opts.into_request_args(), Method::DELETE)
+    }
+}
 
 
 #[derive(Clone)]
-pub struct Interact<I>
+pub(crate) struct Interact<I>
     where
         I: Connect + 'static
 {
-    pub(crate) client: Client<I>,
-    pub(crate) host: Uri,
+    client: Client<I>,
+    host: Uri,
 }
 
 impl <I> Interact<I>
@@ -33,35 +115,30 @@ impl <I> Interact<I>
             host
         }
     }
+}
 
-    fn request_with_header<A, B, C>(&self, path: Option<A>, query: Option<B>,
-                                    body: Option<C>, method: Method, header: Option<HeaderMap>)
-        -> ResponseFutureWrapper
-        where
-            A: AsRef<str> + Display + Default,
-            B: AsRef<str> + Display + Default,
-            C: Into<Body>,
+impl <I> InteractApi for Interact<I>
+    where
+        I: Connect + 'static
+{
+    fn request(&self, opts: RequestArgs, method: Method) -> ResponseFutureWrapper
     {
         let client = self.client.clone();
-        let body = match body {
-            None => Body::empty(),
-            Some(a) => a.into(),
-        };
-        let mut header = match header {
-            None => HeaderMap::new(),
-            Some(h) => h,
-        };
+        let uri_result = compose_uri(&self.host, opts.path, opts.query);
 
+        let b = opts.body;
+        let h = opts.header;
 
-        Box::new(future::result(compose_uri(&self.host, path, query))
-            .and_then(|uri|
-                ::transport::build_request(method, uri, body)
+        Box::new(future::result(uri_result)
+            .and_then(move |uri|
+                ::transport::build_request(method, uri, b)
                     .map_err(Error::from)
             )
             .map_err(Error::from)
-            .and_then(|mut request| {
-                for h in header {
-                    let key = h.0.expect("Empty header key");
+            // Inserting header elements one-by-one
+            .and_then(move |mut request| {
+                for h in h {
+                    let key = h.0.expect("Empty header's key name");
                     request.headers_mut().insert(key, h.1);
                 }
                 Ok(request)
@@ -70,84 +147,5 @@ impl <I> Interact<I>
                 Ok(client.request(request))
             })
         )
-    }
-
-    pub fn get<A, B>(&self, path: Option<A>, query: Option<B>) -> ResponseFutureWrapper
-        where
-            A: AsRef<str> + Display + Default,
-            B: AsRef<str> + Display + Default
-    {
-        let method = Method::GET;
-        let body : Option<Body> = None;
-
-        self.request_with_header(path, query, body, method, None)
-    }
-
-    pub fn put<A, B, C>(&self, path: Option<A>, query: Option<B>, body: Option<C>)
-                      -> ResponseFutureWrapper
-        where
-            A: AsRef<str> + Display + Default,
-            B: AsRef<str> + Display + Default,
-            C: Into<Body>,
-    {
-        let method = Method::PUT;
-
-        self.request_with_header(path, query, body, method, None)
-    }
-
-    pub fn post<A, B>(&self, path: Option<A>, query: Option<B>)
-                     -> ResponseFutureWrapper
-        where
-            A: AsRef<str> + Display + Default,
-            B: AsRef<str> + Display + Default,
-    {
-        let method = Method::POST;
-        let body : Option<Body> = None;
-
-        self.request_with_header(path, query, body, method, None)
-    }
-
-    pub fn post_json<A, B, C>(&self, path: Option<A>, query: Option<B>, body: Option<C>)
-                              -> ResponseFutureWrapper
-        where
-            A: AsRef<str> + Display + Default,
-            B: AsRef<str> + Display + Default,
-            C: Into<Body>,
-    {
-        let method = Method::POST;
-        let mut map = HeaderMap::new();
-        map.insert(CONTENT_TYPE, "application/json".parse().unwrap());
-        let header = Some(map);
-
-        self.request_with_header(path, query, body, method, header)
-    }
-
-    // Ugly workaround - there is issue with keep-alive chaining while connecting by Unix connector.
-    // It just doesn't work.
-    pub fn _post_json<A, B, C>(&self, path: Option<A>, query: Option<B>, body: Option<C>)
-                              -> ResponseFutureWrapper
-        where
-            A: AsRef<str> + Display + Default,
-            B: AsRef<str> + Display + Default,
-            C: Into<Body>,
-    {
-        let method = Method::POST;
-        let mut map = HeaderMap::new();
-        map.insert(CONTENT_TYPE, "application/json".parse().unwrap());
-        map.insert("Connection", "close".parse().unwrap());
-        let header = Some(map);
-
-        self.request_with_header(path, query, body, method, header)
-    }
-
-    pub fn delete<A, B>(&self, path: Option<A>, query: Option<B>) -> ResponseFutureWrapper
-        where
-            A: AsRef<str> + Display + Default,
-            B: AsRef<str> + Display + Default
-    {
-        let method = Method::DELETE;
-        let body : Option<Body> = None;
-
-        self.request_with_header(path, query, body, method, None)
     }
 }

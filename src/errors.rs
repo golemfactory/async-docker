@@ -18,6 +18,8 @@ error_chain! {
         Utf8Error(::std::str::Utf8Error);
         FromUtf8Error(::std::string::FromUtf8Error);
         InvalidUriParts(::http::uri::InvalidUriParts);
+        InvalidHttpHeaderName(::hyper::header::InvalidHeaderName);
+        InvalidHttpHeaderValue(::hyper::header::InvalidHeaderValue);
     }
 
     errors {
@@ -57,8 +59,18 @@ error_chain! {
         }
 
         Eof {
-            description("broken stream")
-                display("broken stream")
+            description("Broken stream")
+                display("Broken stream")
+        }
+
+        EmptyScheme {
+            description("Found empty uri scheme")
+                display("Found empty uri scheme")
+        }
+
+        InvalidScheme {
+            description("Invalid uri scheme")
+                display("Invalid uri scheme")
         }
     }
 

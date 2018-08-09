@@ -7,7 +7,6 @@ use Result;
 use futures::Stream;
 use build::LogsOptions;
 
-use docker::DockerTrait;
 use util::build_simple_query;
 
 use transport::parse::parse_to_lines;
@@ -34,33 +33,30 @@ use transport::interact::Interact;
 use std::sync::Arc;
 use build::ContainerArchiveOptions;
 use tarball::tarball;
+use transport::interact::InteractApi;
+use transport::interact::InteractApiExt;
+use communicate::util::AsSlice;
+
 
 /// Interface for accessing and manipulating a docker container
-pub struct Container<T>
-    where
-        T: 'static + Connect,
+pub struct Container
 {
-    interact: Arc<Interact<T>>,
+    interact: Arc<InteractApi>,
     id: Cow<'static, str>,
 }
 
-impl<T> Clone for Container<T>
-    where
-        T: 'static + Connect,
+impl Clone for Container
 {
-    fn clone(&self) -> Container<T> {
+    fn clone(&self) -> Container {
         let interact = self.interact.clone();
         Container::new(self.interact.clone(), self.id.clone())
     }
 }
 
-impl<T> Container<T>
-    where
-        T: 'static + Connect,
+impl Container
 {
     /// Exports an interface exposing operations against a container instance
-    pub(crate) fn new(interact: Arc<Interact<T>>, id: Cow<'static, str>) -> Container<T>
-    {
+    pub(crate) fn new(interact: Arc<InteractApi>, id: Cow<'static, str>) -> Container {
         Container {
             interact,
             id: id.into(),
@@ -74,159 +70,143 @@ impl<T> Container<T>
 
     /// Inspects the current docker container instance's details
     pub fn inspect(&self) -> impl Future<Item=ContainerDetails, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/json", self.id));
-        let query : Option<&str> = None;
+        let path = format!("/containers/{}/json", self.id);
+        let args = path.as_str();
 
-        parse_to_trait::<ContainerDetails>(self.interact.get(path, query))
+        parse_to_trait::<ContainerDetails>(self.interact.get(args))
     }
 
     /// Returns a `top` view of information about the container process
     pub fn top(&self, psargs: Option<&str>) -> impl Future<Item=Top, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/top", self.id));
+        let path = format!("/containers/{}/top", self.id);
         let query = build_simple_query("ps_args", psargs);
+        let args = (path.as_ref(), query.as_slice());
 
-        parse_to_trait::<Top>(self.interact.get(path, query))
+        parse_to_trait::<Top>(self.interact.get(args))
     }
 
     /// Returns a stream of logs emitted but the container instance
     pub fn logs(&self, opts: &LogsOptions) -> impl Stream<Item=String, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/logs", self.id));
+        let path = format!("/containers/{}/logs", self.id);
         let query = opts.serialize();
+        let args = (path.as_str(), query.as_slice());
 
-        parse_to_lines(self.interact.get(path, query))
+        parse_to_lines(self.interact.get(args))
     }
 
     /// Returns a set of changes made to the container instance
     pub fn changes(&self) -> impl Future<Item=Vec<Change>, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/changes", self.id));
-        let query : Option<&str>  = None;
+        let args = format!("/containers/{}/changes", self.id);
 
-        parse_to_trait::<Vec<Change>>(self.interact.get(path, query))
+        parse_to_trait::<Vec<Change>>(self.interact.get(args.as_str()))
     }
 
     /// Exports the current docker container into a tarball
     pub fn export(&self) -> impl Future<Item=(), Error=Error> + Send {
-        let path = Some(format!("/containers/{}/export", self.id));
-        let query : Option<&str>  = None;
+        let args = format!("/containers/{}/export", self.id);
 
-        parse_to_file(self.interact.get(path, query), "antonn")
+        parse_to_file(self.interact.get(args.as_str()), "antonn")
     }
 
     /// Returns a stream of stats specific to this container instance
     pub fn stats(&self) -> impl Stream<Item=Result<Stats>, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/stats", self.id));
-        let query : Option<&str> = None;
+        let args = format!("/containers/{}/stats", self.id);
 
-        parse_to_stream::<Stats>(self.interact.get(path, query))
+        parse_to_stream::<Stats>(self.interact.get(args.as_str()))
     }
 
     /// Start the container instance
     pub fn start(&self) ->  impl Future<Item=StatusCode, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/start", self.id));
-        let query : Option<&str> = None;
-        let body : Option<Body>  = None;
+        let args = format!("/containers/{}/start", self.id);
 
-        status_code(self.interact.post(path, query))
+        status_code(self.interact.post(args.as_str()))
     }
 
     /// Stop the container instance
     pub fn stop(&self, wait: Option<Duration>) -> impl Future<Item=StatusCode, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/start", self.id));
+        let path = format!("/containers/{}/stop", self.id);
         let query =
             build_simple_query("t", wait.map(|w| w.as_secs().to_string()));
-        let body : Option<Body>  = None;
+        let args = (path.as_str(), query.as_slice());
 
-
-        status_code(self.interact.post(path, query))
+        status_code(self.interact.post(args))
     }
 
     /// Restart the container instance
     pub fn restart(&self, wait: Option<Duration>) -> impl Future<Item=StatusCode, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/restart", self.id));
+        let path = format!("/containers/{}/restart", self.id);
         let query =
             build_simple_query("t", wait.map(|w| w.as_secs().to_string()));
-        let body : Option<Body>  = None;
+        let args = (path.as_str(), query.as_slice());
 
-        status_code(self.interact.post(path, query))
+        status_code(self.interact.post(args))
     }
 
     /// Kill the container instance
     pub fn kill(&self, signal: Option<&str>) -> impl Future<Item=StatusCode, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/kill", self.id));
-        let query =
-            build_simple_query("signal", signal.map(|sig| sig));
-        let body : Option<Body>  = None;
+        let path = format!("/containers/{}/kill", self.id);
+        let query = build_simple_query("signal", signal.map(|sig| sig));
+        let args = (path.as_str(), query.as_slice());
 
-        status_code(self.interact.post(path, query))
+        status_code(self.interact.post(args))
     }
 
     /// Rename the container instance
     pub fn rename(&self, name: &str) -> impl Future<Item=StatusCode, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/rename", self.id));
-        let query =
-            build_simple_query("name", Some(name));
-        let body : Option<Body>  = None;
+        let path = format!("/containers/{}/rename", self.id);
+        let query = build_simple_query("name", Some(name));
+        let args = (path.as_str(), query.as_slice());
 
-        status_code(self.interact.post(path, query))
+        status_code(self.interact.post(args))
     }
 
     /// Pause the container instance
     pub fn pause(&self) -> impl Future<Item=StatusCode, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/pause", self.id));
-        let query : Option<String> = None;
-        let body : Option<Body>  = None;
+        let args = format!("/containers/{}/pause", self.id);
 
-        status_code(self.interact.post(path, query))
+        status_code(self.interact.post(args.as_str()))
     }
 
     /// Unpause the container instance
     pub fn unpause(&self) -> impl Future<Item=StatusCode, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/unpause", self.id));
-        let query: Option<String> = None;
-        let body: Option<Body> = None;
+        let args = format!("/containers/{}/unpause", self.id);
 
-        status_code(self.interact.post(path, query))
+        status_code(self.interact.post(args.as_str()))
     }
 
     /// Wait until the container stops
     pub fn wait(&self) -> impl Future<Item=Exit, Error=Error> + Send {
-        let path = Some(format!("/containers/{}/wait", self.id));
-        let query: Option<String> = None;
-        let body: Option<Body> = None;
+        let args = format!("/containers/{}/wait", self.id);
 
-        parse_to_trait::<Exit>(self.interact.post(path, query))
+        parse_to_trait::<Exit>(self.interact.post(args.as_str()))
     }
 
     /// Delete the container instance
     ///
     /// Use remove instead to use the force/v options.
     pub fn delete(&self) -> impl Future<Item=StatusCode, Error=Error> + Send {
-        let path = Some(format!("/containers/{}", self.id));
-        let query: Option<String> = None;
-        let body: Option<Body> = None;
+        let args = format!("/containers/{}", self.id);
 
-        status_code(self.interact.delete(path, query))
+        status_code(self.interact.delete(args.as_str()))
     }
 
     /// Delete the container instance (todo: force/v)
     pub fn remove(&self, opts: &RmContainerOptions) -> impl Future<Item=StatusCode, Error=Error> + Send {
-        let path = Some(format!("/containers/{}", self.id));
+        let path = format!("/containers/{}", self.id);
         let query = opts.serialize();
-        let body: Option<Body> = None;
+        let args = (path.as_str(), query.as_slice());
 
-        status_code(self.interact.delete(path, query))
+        status_code(self.interact.delete(args))
     }
 
     pub fn create_exec(&self, opts: &ExecContainerOptions)
         -> impl Future<Item=String, Error=Error> + Send
     {
-        let path = Some(format!("/containers/{}/exec", self.id));
-        let query: Option<String> = None;
-        let body = opts.serialize();
+        let path = format!("/containers/{}/exec", self.id);
+        let body = opts.serialize().map(Body::from);
+        let args = (path.as_str(), body);
 
-        debug!("Body: {:?}", body);
-
-        parse_to_trait::<Value>(self.interact._post_json(path, query, body))
+        parse_to_trait::<Value>(self.interact.post_json(args))
             .and_then(|val| {
                 debug!("{:?}", val);
                 match val {
@@ -247,19 +227,15 @@ impl<T> Container<T>
     pub fn start_exec(&self, id: String)
         -> impl Stream<Item=(u32, Chunk), Error=Error>
     {
-        debug!("Start exec");
-        debug!("{:?}", id);
-        let path = Some(format!("/exec/{}/start", id));
-        let query: Option<String> = None;
-        let body : Option<String> = Some("{}".to_string());
+        let path = format!("/containers/{}/start", self.id);
+        let body = Some(Body::from("{}".to_string()));
+        let args = (path.as_str(), body);
 
-        let body_future = self.interact.post_json(path, query, body)
+        let body_future = self.interact.post_json(args)
             .and_then(|response| {
-                debug!("exec 1");
                 response.map_err(Error::from)
             })
             .and_then(|result| {
-                debug!("exec 2");
                 Ok(result.into_body().map_err(Error::from))
             })
             .flatten_stream();
@@ -269,7 +245,7 @@ impl<T> Container<T>
         let path = Some(format!("/exec/{}/start", id));
         let query : Option<String> = None;
         let body : Option<String> = Some("{}".to_string());
-        self.interact.post_json(path, query, body)
+        self.interact.post_json(args)
             .and_then(|future| {
                 debug!(">>> future");
                 future.map_err(Error::from)
@@ -295,15 +271,15 @@ impl<T> Container<T>
     pub fn archive_put(&self, opts: &ContainerArchiveOptions)
             -> impl Future<Item=StatusCode, Error=Error> + Send
     {
-        let path = Some(format!("/containers/{}/archive", self.id));
-        let query: Option<String> = opts.serialize();
-
-
         let mut bytes = vec![];
         tarball::dir(&mut bytes, &opts.local_path).unwrap();
-        let body = Some(Body::from(bytes));
 
-        status_code(self.interact.put(path, query, body))
+        let path = format!("/containers/{}/start", self.id);
+        let query = opts.serialize();
+        let body = Some(Body::from(bytes));
+        let args = (path.as_str(), query.as_slice(), body);
+
+        status_code(self.interact.put(args))
     }
 
     // todo attach, attach/ws, copy

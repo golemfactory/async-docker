@@ -67,7 +67,11 @@ use futures::stream;
 use futures;
 
 use transport::*;
-use ::docker::DockerTrait;
+use hyper::HeaderMap;
+use http::header::HeaderValue;
+use http::header::IntoHeaderName;
+use http::header::HeaderName;
+
 
 pub fn build_simple_query<A>(name: &str, value: Option<A>) -> Option<String>
     where
@@ -82,8 +86,90 @@ pub fn build_simple_query<A>(name: &str, value: Option<A>) -> Option<String>
     query
 }
 
+pub(crate) trait AsSlice {
+    fn as_slice(&self) -> Option<&str>;
+}
 
+impl AsSlice for Option<String>
+{
+    fn as_slice(&self) -> Option<&str> {
+        match self {
+            Some(ref x) => Some(x),
+            None => None,
+        }
+    }
+}
 
+#[derive(Default)]
+pub(crate) struct RequestArgs<'a,'b> {
+    pub path: &'a str,
+    pub query: &'b str,
+    pub body: Body,
+    pub header: HeaderMap,
+}
+
+impl <'a,'b> RequestArgs<'a,'b>{
+    pub fn set_header<A,B>(&mut self, key: A, value: B) -> Result<()>
+        where
+            A: Into<HeaderName>,
+            B: Into<HeaderValue>,
+    {
+        self.header.insert(key.into(), value.into());
+
+        Ok(())
+    }
+}
+
+pub(crate) trait IntoRequestArgs<'a,'b>
+{
+    fn into_request_args(self) -> RequestArgs<'a,'b>;
+}
+
+impl <'a,'b> IntoRequestArgs<'a,'b> for &'a str
+{
+    fn into_request_args(self) -> RequestArgs<'a,'b> {
+        let mut args = RequestArgs::default();
+        args.path = self;
+
+        args
+    }
+}
+
+impl <'a,'b> IntoRequestArgs<'a,'b> for (&'a str, Option<&'b str>)
+{
+    fn into_request_args(self) -> RequestArgs<'a,'b> {
+        let mut args = RequestArgs::default();
+
+        args.path = self.0;
+        args.query = self.1.unwrap_or_default();
+
+        args
+    }
+}
+
+impl <'a,'b> IntoRequestArgs<'a,'b> for (&'a str, Option<Body>)
+{
+    fn into_request_args(self) -> RequestArgs<'a,'b> {
+        let mut args = RequestArgs::default();
+        args.path = self.0;
+        args.body = self.1.unwrap_or_default();
+
+        args
+    }
+}
+
+impl <'a,'b> IntoRequestArgs<'a,'b> for (&'a str, Option<&'b str>, Option<Body>)
+{
+    fn into_request_args(self) -> RequestArgs<'a,'b> {
+        let mut args = RequestArgs::default();
+
+        args.path = self.0;
+        args.query = self.1.unwrap_or_default();
+        args.body = self.2.unwrap_or_default();
+
+        args
+    }
+}
 /*
 /// Interface for docker images
 pub struct Images<'a, T: 'a> {

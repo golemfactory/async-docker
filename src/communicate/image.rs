@@ -11,29 +11,26 @@ use futures::Stream;
 use transport::parse::parse_to_trait;
 use futures::Future;
 use transport::parse::parse_to_file;
-use communicate::DockerTrait;
 use hyper::client::connect::Connect;
 use std::option::Iter;
 use futures::future;
 use transport::interact::Interact;
 use std::sync::Arc;
+use transport::interact::InteractApi;
+use transport::interact::InteractApiExt;
 
 
 /// Interface for accessing and manipulating a named docker image
-pub struct Image<'b, T>
-    where
-        T: 'static + Connect,
+pub struct Image<'b>
 {
-    interact: Arc<Interact<T>>,
+    interact: Arc<InteractApi>,
     name: Cow<'b, str>,
 }
 
-impl<'b, T> Image<'b, T>
-    where
-        T: 'static + Connect,
+impl<'b> Image<'b>
 {
     /// Exports an interface for operations that may be performed against a named image
-    pub(crate) fn new<S>(interact: Arc<Interact<T>>, name: S) -> Image<'b, T>
+    pub(crate) fn new<S>(interact: Arc<InteractApi>, name: S) -> Image<'b>
     where
         S: Into<Cow<'b, str>>,
     {
@@ -45,24 +42,20 @@ impl<'b, T> Image<'b, T>
 
     /// Inspects a named image's details
     pub fn inspect(&self) -> impl Future<Item=ImageDetails, Error=Error> + Send {
-        let path = Some(format!("/images/{}/json", self.name));
-        let query : Option<&str>  = None;
+        let args = format!("/images/{}/json", self.name);
 
-        parse_to_trait::<ImageDetails>(self.interact.get(path, query))
+        parse_to_trait::<ImageDetails>(self.interact.get(args.as_str()))
     }
 
     /// Lists the history of the images set of changes
     pub fn history(&self) -> impl Future<Item=History, Error=Error> + Send {
-        let path = Some(format!("/images/{}/history", self.name));
-        let query : Option<&str>  = None;
+        let args = format!("/images/{}/history", self.name);
 
-        parse_to_trait::<History>(self.interact.get(path, query))
+        parse_to_trait::<History>(self.interact.get(args.as_str()))
     }
 
     /// Deletes an image
     pub fn delete(&self) -> impl Future<Item=Vec<Status>, Error=Error> + Send {
-        let path = Some(format!("/images/{}", self.name));
-        let query : Option<&str>  = None;
 
         fn parse_array(xs: Vec<Value>) -> Result<Vec<Status>> {
             xs
@@ -90,7 +83,9 @@ impl<'b, T> Image<'b, T>
                 .collect()
         }
 
-        parse_to_trait::<Value>(self.interact.delete(path, query))
+        let args = format!("/images/{}", self.name);
+
+        parse_to_trait::<Value>(self.interact.delete(args.as_str()))
             .and_then(|val|
                 match val {
                     Value::Array(xs) => future::result(parse_array(xs)),
@@ -101,9 +96,8 @@ impl<'b, T> Image<'b, T>
 
     /// Export this image to a tarball
     pub fn export(&self) -> impl Future<Item=(), Error=Error> + Send {
-        let path = Some(format!("/images/{}/export", self.name));
-        let query : Option<&str>  = None;
+        let args = format!("/images/{}/export", self.name);
 
-        parse_to_file(self.interact.get(path, query), "antonn")
+        parse_to_file(self.interact.get(args.as_str()), "antonn")
     }
 }

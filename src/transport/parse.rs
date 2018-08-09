@@ -186,17 +186,11 @@ pub(crate) fn parse_to_file(future: ResponseFutureWrapper, filepath: &'static st
 }
 
 
-pub(crate) fn compose_uri<A, B>(host: &Uri, path: Option<A>, query: Option<B>) -> Result<Uri>
-    where
-        A: AsRef<str> + Display + Default,
-        B: AsRef<str> + Display + Default
+pub(crate) fn compose_uri(host: &Uri, path: &str, query: &str) -> Result<Uri>
 {
     let mut parts = host.clone().into_parts();
     let path_query = PathAndQuery::from_str(
-        format!("{}?{}",
-                path.unwrap_or(A::default()),
-                query.unwrap_or(B::default())
-        ).as_ref())?;
+        format!("{}?{}", path, query).as_ref())?;
 
     parts.path_and_query = Some(path_query);
     let res = Uri::from_parts(parts);
