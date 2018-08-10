@@ -12,6 +12,7 @@ use url::form_urlencoded;
 use build::PullOptions;
 use hyper::Body;
 use transport::parse::parse_to_stream;
+use transport::parse::parse_to_trait;
 use communicate::util::AsSlice;
 use transport::interact::InteractApiExt;
 use futures::future;
@@ -36,7 +37,7 @@ impl Images {
     }
 
     /// Builds a new image build by reading a Dockerfile in a target directory
-    pub fn build(&self, opts: &BuildOptions) -> impl Stream<Item=Result<Top>, Error=Error> + Send {
+    pub fn build(&self, opts: &BuildOptions) -> impl Future<Item=Vec<Top>, Error=Error> + Send {
         let mut bytes = vec![];
         let interact = self.interact.clone();
 
@@ -48,40 +49,39 @@ impl Images {
                 let body = Some(Body::from(bytes));
 
                 let args = (path, query.as_slice(), body);
-                Ok(parse_to_stream::<Top>(interact.get(args)))
+                parse_to_trait::<Vec<Top>>(interact.get(args))
             })
-            .flatten_stream()
     }
 
     /// Lists the docker images on the current docker host
-    pub fn list(&self, opts: &ImageListOptions) -> impl Stream<Item=Result<ImageRep>, Error=Error> + Send {
+    pub fn list(&self, opts: &ImageListOptions) -> impl Future<Item=Vec<ImageRep>, Error=Error> + Send {
         let path = "/images/json";
         let query = opts.serialize();
 
         let args = (path, query.as_slice());
 
-        parse_to_stream::<ImageRep>(self.interact.get(args))
+        parse_to_trait::<Vec<ImageRep>>(self.interact.get(args))
     }
 
 
     /// Search for docker images by term
-    pub fn search(&self, term: &str) -> impl Stream<Item=Result<SearchResult>, Error=Error> + Send {
+    pub fn search(&self, term: &str) -> impl Future<Item=Vec<SearchResult>, Error=Error> + Send {
         let path = "/images/search";
         let query = build_simple_query("term", Some(term));
 
         let args = (path, query.as_slice());
 
-        parse_to_stream::<SearchResult>(self.interact.get(args))
+        parse_to_trait::<Vec<SearchResult>>(self.interact.get(args))
     }
 
     /// Pull and create a new docker images from an existing image
-    pub fn pull(&self, opts: &PullOptions) -> impl Stream<Item=String, Error=Error> + Send {
+    pub fn pull(&self, opts: &PullOptions) -> impl Future<Item=Value, Error=Error> + Send {
         let path = "/images/create";
         let query = opts.serialize();
 
         let args = (path, query.as_slice());
 
-        parse_to_lines(self.interact.post(args))
+        parse_to_trait::<Value>(self.interact.post(args))
     }
 
     /// exports a collection of named images,

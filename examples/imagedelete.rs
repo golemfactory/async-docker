@@ -1,14 +1,29 @@
 extern crate shiplift;
+extern crate http;
+extern crate futures;
+extern crate tokio;
 
-use shiplift::Docker;
+use shiplift::{DockerApi, new_docker};
+use futures::{future, Future};
 use std::env;
 
 fn main() {
-    let docker = Docker::new(None).unwrap();
-    if let Some(img) = env::args().nth(1) {
-        let image = docker.images().get(&img[..]).delete().unwrap();
-        for status in image {
-            println!("{:?}", status);
+    let image = match env::args().nth(1) {
+        Some(val) => val,
+        None => {
+            println!("Not enough arguments");
+            return;
         }
-    }
+    };
+
+    let work = future::lazy(|| {
+        let docker: Box<DockerApi> = new_docker(None).unwrap();
+
+        docker
+            .image(image.into())
+            .delete()
+            .then(|a| Ok(println!("{:?}", a)))
+    });
+
+    tokio::runtime::run(work);
 }
