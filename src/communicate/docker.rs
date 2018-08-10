@@ -42,6 +42,8 @@ use super::unix_docker::UnixDocker;
 use super::ssl_tcp_docker::TcpSSLDocker;
 use std::marker::PhantomData;
 use communicate::Container;
+use communicate::image::Image;
+use communicate::Images;
 
 
 /// Entry point interface for communicating with docker daemon
@@ -61,6 +63,12 @@ pub trait DockerApi
 
     /// Exports an interface for interacting with docker containers
     fn container(&self, id: Cow<'static, str>) -> Container;
+
+    /// Exports an interface for interacting with docker image
+    fn image<'a>(&self, id: Cow<'a, str>) -> Image<'a>;
+
+    /// Exports an interface for interacting images
+    fn images(&self) -> Images;
 }
 
 pub(crate) struct Docker<C>
@@ -113,7 +121,19 @@ impl <C> DockerApi for Docker<C>
     fn container(&self, id: Cow<'static, str>) -> Container
     {
         let interact = self.interact.clone();
-        Container::new(interact, id.into())
+        Container::new(interact, id)
+    }
+
+    fn image<'a>(&self, id: Cow<'a, str>) -> Image<'a>
+    {
+        let interact = self.interact.clone();
+        Image::new(interact, id)
+    }
+
+    fn images(&self) -> Images
+    {
+        let interact = self.interact.clone();
+        Images::new(interact)
     }
 }
 
