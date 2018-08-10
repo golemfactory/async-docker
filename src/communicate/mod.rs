@@ -7,6 +7,7 @@ pub mod container;
 pub mod image;
 
 pub use container::Container;
+pub use docker::{DockerApi, new_docker};
 
 use representation;
 use build;
