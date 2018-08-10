@@ -14,6 +14,8 @@ use transport::parse_to_trait;
 use transport::parse_to_stream;
 use communicate::util::AsSlice;
 
+use std::env;
+
 use build::{
     EventsOptions,
 };
@@ -39,17 +41,12 @@ use super::unix_docker::UnixDocker;
 #[cfg(feature = "ssl")]
 use super::ssl_tcp_docker::TcpSSLDocker;
 use std::marker::PhantomData;
+use communicate::Container;
 
 
 /// Entry point interface for communicating with docker daemon
 pub trait DockerApi
 {
-    /*
-    /// Exports an interface for interacting with docker containers
-    fn container<S>(&self, id: S) -> Container
-        where
-            S: Into<Cow<'static, str>>;
-    */
     /// Returns version information associated with the docker daemon
     fn version(&self) -> Box<Future<Item=Version, Error=Error> + Send>;
 
@@ -61,6 +58,9 @@ pub trait DockerApi
 
     /// Returns an iterator over streamed docker events
     fn events(&self, opts: &EventsOptions) -> Box<Stream<Item=Result<Event>, Error=Error> + Send>;
+
+    /// Exports an interface for interacting with docker containers
+    fn container(&self, id: Cow<'static, str>) -> Container;
 }
 
 pub(crate) struct Docker<C>
@@ -85,16 +85,6 @@ impl <C> Docker<C>
 impl <C> DockerApi for Docker<C>
     where C: Connect + 'static
 {
-    /*
-    fn container<S>(&self, id: S) -> Container<A>
-        where
-            S: Into<Cow<'static, str>>,
-    {
-        let interact = self.interact().clone();
-        Container::<A>::new(interact, id.into())
-    }
-    */
-
     fn version(&self) -> Box<Future<Item=Version, Error=Error> + Send> {
         let arg = "/version";
 
@@ -119,13 +109,29 @@ impl <C> DockerApi for Docker<C>
 
         Box::new(parse_to_stream::<Event>(self.interact.get(arg)))
     }
+
+    fn container(&self, id: Cow<'static, str>) -> Container
+    {
+        let interact = self.interact.clone();
+        Container::new(interact, id.into())
+    }
 }
 
-
+fn default_uri(uri: Option<Uri>) -> Result<Uri> {
+    use communicate::util::{URI_ENV, DEFAULT_URI};
+    match uri {
+        None => match env::var(URI_ENV) {
+            Ok(var) => var.parse().map_err(Error::from),
+            Err(e) => DEFAULT_URI.parse().map_err(Error::from),
+        },
+        Some(x) => Ok(x)
+    }
+}
 
 /// Creates the docker struct relevant to the provided Uri
-pub fn new_docker(host: Uri) -> Result<Box<DockerApi>>
+pub fn new_docker(host: Option<Uri>) -> Result<Box<DockerApi>>
 {
+    let host = default_uri(host)?;
     let scheme = host.scheme_part().map(|a| a.as_str().to_string());
     match scheme.as_slice() {
         Some(scheme) => match scheme {

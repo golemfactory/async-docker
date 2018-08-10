@@ -18,7 +18,7 @@ use http::header::CONNECTION;
 use http::header::HeaderValue;
 
 
-pub(crate) trait InteractApi
+pub(crate) trait InteractApi: Send + Sync
 {
     fn request(&self, opts: RequestArgs, method: Method)
         -> ResponseFutureWrapper;

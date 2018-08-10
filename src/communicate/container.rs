@@ -227,7 +227,7 @@ impl Container
     pub fn start_exec(&self, id: String)
         -> impl Stream<Item=(u32, Chunk), Error=Error>
     {
-        let path = format!("/containers/{}/start", self.id);
+        let path = format!("/exec/{}/start", id);
         let body = Some(Body::from("{}".to_string()));
         let args = (path.as_str(), body);
 
@@ -262,7 +262,6 @@ impl Container
         -> impl Stream<Item=(u32, Chunk), Error=Error>
     {
         let copy_self = self.clone();
-
         self.create_exec(opts)
             .and_then(move |id| Ok(copy_self.start_exec(id)))
             .flatten_stream()

@@ -5,16 +5,11 @@ extern crate tokio;
 
 use shiplift::{DockerApi, new_docker};
 use http::Uri;
-use std::env;
 use futures::{future, Future};
 
 fn main() {
-    let uri : Uri = env::args().nth(1)
-        .unwrap_or("unix://var/run/docker.sock".to_string())
-        .parse().unwrap();
-
     let work = future::lazy(||  {
-        let docker: Box<DockerApi> = new_docker(uri).unwrap();
+        let docker: Box<DockerApi> = new_docker(None).unwrap();
 
         docker
             .info()

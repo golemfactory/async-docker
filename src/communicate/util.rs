@@ -73,7 +73,10 @@ use http::header::IntoHeaderName;
 use http::header::HeaderName;
 
 
-pub fn build_simple_query<A>(name: &str, value: Option<A>) -> Option<String>
+pub(crate) const URI_ENV: &'static str = "SHIPLIFT_URI";
+pub(crate) const DEFAULT_URI: &'static str = "unix://var/run/docker.sock";
+
+pub(crate) fn build_simple_query<A>(name: &str, value: Option<A>) -> Option<String>
     where
         A: AsRef<str>
 {
@@ -170,6 +173,8 @@ impl <'a,'b> IntoRequestArgs<'a,'b> for (&'a str, Option<&'b str>, Option<Body>)
         args
     }
 }
+
+
 /*
 /// Interface for docker images
 pub struct Images<'a, T: 'a> {
