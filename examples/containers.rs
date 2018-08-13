@@ -1,12 +1,21 @@
-extern crate env_logger;
 extern crate shiplift;
+extern crate http;
+extern crate futures;
+extern crate tokio;
 
-use shiplift::Docker;
+use shiplift::{DockerApi, new_docker};
+use futures::{future, Future};
 
 fn main() {
-    env_logger::init().unwrap();
-    let docker = Docker::new(None).unwrap();
-    for c in docker.containers().list(&Default::default()).unwrap() {
-        println!("container -> {:?}", c)
-    }
+    let work = future::lazy(||  {
+        let docker: Box<DockerApi> = new_docker(None).unwrap();
+
+        docker
+            .containers()
+            .list(&Default::default())
+            .and_then(|a| Ok(println!("{:?}", a)))
+            .map_err(|e| eprintln!("{:?}", e))
+    });
+
+    tokio::runtime::run(work);
 }

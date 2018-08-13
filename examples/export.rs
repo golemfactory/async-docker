@@ -1,22 +1,44 @@
 extern crate shiplift;
+extern crate http;
+extern crate futures;
+extern crate tokio;
 
-use shiplift::Docker;
+use shiplift::{DockerApi, new_docker};
+use futures::{future, Future};
 use std::env;
 use std::fs::OpenOptions;
 use std::io::copy;
+use futures::Stream;
+
 
 fn main() {
-    let docker = Docker::new(None).unwrap();
-    if let Some(id) = env::args().nth(1) {
+    if env::args().count() < 2 {
+        println!("Too few arguments (<1).");
+        return;
+    }
+
+    let image_id = env::args().nth(1).unwrap();
+
+    let work = future::lazy(||  {
+        let docker: Box<DockerApi> = new_docker(None).unwrap();
+
         let mut export = OpenOptions::new()
             .write(true)
             .create(true)
-            .open(format!("{}.tgz", &id))
+            .open(format!("{}.tgz", &image_id))
             .unwrap();
-        let images = docker.images();
-        let mut exported = images.get(&id).export().unwrap();
-        println!("copying");
-        copy(&mut exported, &mut export).unwrap();
-        println!("copied");
-    }
+
+        docker
+            .image(image_id.into())
+            .export()
+            .concat2()
+            .and_then(move |chunk| {
+                let strin = chunk.into_bytes();
+                copy(&mut strin.as_ref(), &mut export).unwrap();
+                Ok(println!("Success"))
+            })
+            .map_err(|a| eprintln!("{:?}", a))
+    });
+
+    tokio::runtime::run(work);
 }

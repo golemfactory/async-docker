@@ -1,9 +1,14 @@
 //! Interfaces for building various structures
+extern crate serde;
+extern crate serde_json;
 
-use serde::Serialize;
-use serde_json::map::Map;
-use serde_json::Number;
-use serde_json::Value;
+use self::serde::Serialize;
+use self::serde_json::map::Map;
+use self::serde_json::Number;
+use self::serde_json::Value;
+use self::serde_json::to_string as ser_to_string;
+use self::serde_json::to_value as de_to_value;
+
 use std::cmp::Eq;
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
@@ -256,7 +261,7 @@ impl ContainerListOptionsBuilder {
         // structure is a a json encoded object mapping string keys to a list
         // of string values
         self.params
-            .insert("filters", ::serde_json::to_string(&param).unwrap());
+            .insert("filters", ser_to_string(&param).unwrap());
         self
     }
 
@@ -316,7 +321,7 @@ where
     } else {
         parent_node.as_object_mut().unwrap().insert(
             local_key.to_string(),
-            ::serde_json::to_value(value).unwrap(),
+            de_to_value(value).unwrap(),
         );
     }
 }
@@ -329,7 +334,7 @@ impl ContainerOptions {
 
     /// serialize options as a string. returns None if no options are defined
     pub fn serialize(&self) -> Result<String> {
-        Ok(::serde_json::to_string(&::serde_json::to_value(self)?)?)
+        Ok(ser_to_string(&de_to_value(self)?)?)
     }
 
     pub fn parse_from<'a, K, V>(&self, params: &'a HashMap<K, V>, body: &mut Value)
@@ -527,9 +532,10 @@ impl ExecContainerOptions {
         ExecContainerOptionsBuilder::new()
     }
 
-    /// serialize options as a string. returns None if no options are defined
-    pub fn serialize(&self) -> Result<String> {
-        ::serde_json::to_string(&self).map_err(Error::from)
+    /// serialize options to a string.
+    pub fn serialize(&self) -> Option<String> {
+        let a = ser_to_string(&self).map_err(Error::from);
+        Some(a.expect("Exec options serialization failed"))
     }
 }
 
@@ -589,9 +595,9 @@ impl ExecContainerOptionsBuilder {
     }
 }
 
-//
+
 #[derive(Serialize)]
-pub struct ContainerArchiveOptions {
+pub struct ContainerArchivePutOptions {
     #[serde(skip)]
     pub local_path: String,
     #[serde(flatten)]
@@ -600,7 +606,7 @@ pub struct ContainerArchiveOptions {
     params_bool: HashMap<&'static str, bool>,
 }
 
-impl ContainerArchiveOptions {
+impl ContainerArchivePutOptions {
     /// return a new instance of a builder for options
     pub fn builder() -> ContainerArchiveOptionsBuilder {
         ContainerArchiveOptionsBuilder::new()
@@ -632,7 +638,7 @@ impl ContainerArchiveOptionsBuilder {
         }
     }
 
-    pub fn path(&mut self, cmds: String) -> &mut ContainerArchiveOptionsBuilder {
+    pub fn remote_path(&mut self, cmds: String) -> &mut ContainerArchiveOptionsBuilder {
         self.params.insert("path", cmds);
         self
     }
@@ -647,8 +653,8 @@ impl ContainerArchiveOptionsBuilder {
         self
     }
 
-    pub fn build(&self) -> ContainerArchiveOptions {
-        ContainerArchiveOptions {
+    pub fn build(&self) -> ContainerArchivePutOptions {
+        ContainerArchivePutOptions {
             local_path: self.local_path.clone(),
             params: self.params.clone(),
             params_bool: self.params_bool.clone(),
@@ -780,7 +786,7 @@ impl EventsOptionsBuilder {
             };
         }
         self.params
-            .insert("filters", ::serde_json::to_string(&params).unwrap());
+            .insert("filters", ser_to_string(&params).unwrap());
         self
     }
 
@@ -925,7 +931,7 @@ impl ImageListOptionsBuilder {
         // structure is a a json encoded object mapping string keys to a list
         // of string values
         self.params
-            .insert("filters", ::serde_json::to_string(&param).unwrap());
+            .insert("filters", ser_to_string(&param).unwrap());
         self
     }
 
@@ -1008,7 +1014,6 @@ impl NetworkListOptions {
 /// Interface for creating new docker network
 #[derive(Serialize)]
 pub struct NetworkCreateOptions {
-    pub name: Option<String>,
     #[serde(flatten)]
     params: HashMap<&'static str, String>,
     #[serde(flatten)]
@@ -1023,7 +1028,7 @@ impl NetworkCreateOptions {
 
     /// serialize options as a string. returns None if no options are defined
     pub fn serialize(&self) -> Result<String> {
-        ::serde_json::to_string(&self).map_err(Error::from)
+        ser_to_string(&self).map_err(Error::from)
     }
 
     pub fn parse_from<'a, K, V>(
@@ -1036,7 +1041,7 @@ impl NetworkCreateOptions {
     {
         for (k, v) in params.iter() {
             let key = k.to_string();
-            let value = ::serde_json::to_value(v).unwrap();
+            let value = de_to_value(v).unwrap();
 
             body.insert(key, value);
         }
@@ -1045,7 +1050,6 @@ impl NetworkCreateOptions {
 
 #[derive(Default)]
 pub struct NetworkCreateOptionsBuilder {
-    name: Option<String>,
     params: HashMap<&'static str, String>,
     params_hash: HashMap<String, Vec<HashMap<String, String>>>,
 }
@@ -1057,7 +1061,6 @@ impl NetworkCreateOptionsBuilder {
 
         params.insert("Name", name.to_owned());
         NetworkCreateOptionsBuilder {
-            name: None,
             params,
             params_hash,
         }
@@ -1085,7 +1088,6 @@ impl NetworkCreateOptionsBuilder {
 
     pub fn build(&self) -> NetworkCreateOptions {
         NetworkCreateOptions {
-            name: self.name.clone(),
             params: self.params.clone(),
             params_hash: self.params_hash.clone(),
         }
@@ -1112,7 +1114,7 @@ impl ContainerConnectionOptions {
 
     /// serialize options as a string. returns None if no options are defined
     pub fn serialize(&self) -> Result<String> {
-        ::serde_json::to_string(&self).map_err(Error::from)
+        ser_to_string(&self).map_err(Error::from)
     }
 
     pub fn parse_from<'a, K, V>(
@@ -1125,7 +1127,7 @@ impl ContainerConnectionOptions {
     {
         for (k, v) in params.iter() {
             let key = k.to_string();
-            let value = ::serde_json::to_value(v).unwrap();
+            let value = de_to_value(v).unwrap();
 
             body.insert(key, value);
         }

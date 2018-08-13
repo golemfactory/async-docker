@@ -20,15 +20,16 @@ ssl = [ "openssl", "hyper-openssl" ]
 without-ssl = []
 
 [features]
-default = ["without-ssl"]
+default = []
 ssl = [ "openssl", "hyper-openssl"]
-without-ssl = []
+
 
 [dependencies]
-byteorder = "1.0.0"
+byteorder = "1.0"
 flate2 = "0.2"
-hyper = "0.10"
-hyperlocal = "0.3"
+hyper = "0.12"
+
+
 jed = "0.1"
 log = "0.3"
 rustc-serialize = "0.3"
@@ -38,9 +39,18 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json   = "1.0"
 error-chain = "0.12"
+futures = "0.1"
+http = "0.1"
+tokio = "0.1"
+tokio-codec = "0.1"
+bytes = "0.4"
 
-hyper-openssl = { version = "0.2", optional = true }
-openssl = { version = "0.9", optional = true }
+hyper-openssl = { version = "0.6", optional = true }
+openssl = { version = "0.10", optional = true }
+
+[target.'cfg(unix)'.dependencies]
+tokio-uds = "0.2"
+unix_socket = "0.5"
 
 hyper-openssl = { version = "0.2", optional = true }
 openssl = { version = "0.9", optional = true }

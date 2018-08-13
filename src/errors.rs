@@ -1,6 +1,6 @@
 //! Representations of various client errors
 
-use hyper::status::StatusCode;
+use hyper::StatusCode;
 
 error_chain! {
     types {
@@ -11,12 +11,23 @@ error_chain! {
         EnvVar(::std::env::VarError);
         Io(::std::io::Error);
         Hyper(::hyper::Error);
-        HyperParser(::hyper::error::ParseError);
         OpenSSL(::openssl::error::ErrorStack) #[cfg(feature = "ssl")];
         SerdeJsonError(::serde_json::error::Error);
+        InvalidUri(::http::uri::InvalidUri);
+        Http(::http::Error);
+        Utf8Error(::std::str::Utf8Error);
+        FromUtf8Error(::std::string::FromUtf8Error);
+        InvalidUriParts(::http::uri::InvalidUriParts);
+        InvalidHttpHeaderName(::hyper::header::InvalidHeaderName);
+        InvalidHttpHeaderValue(::hyper::header::InvalidHeaderValue);
     }
 
     errors {
+        Message(msg: String) {
+            description("Message")
+                display("{}", msg)
+        }
+
         HyperFault(code: StatusCode) {
             description("HyperFault")
                 display("{}", code)
@@ -45,6 +56,21 @@ error_chain! {
         NoPort {
             description("Failed to find a port")
                 display("Failed to find a port")
+        }
+
+        Eof {
+            description("Broken stream")
+                display("Broken stream")
+        }
+
+        EmptyScheme {
+            description("Found empty uri scheme")
+                display("Found empty uri scheme")
+        }
+
+        InvalidScheme {
+            description("Invalid uri scheme")
+                display("Invalid uri scheme")
         }
     }
 

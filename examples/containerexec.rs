@@ -1,11 +1,14 @@
 extern crate shiplift;
+extern crate http;
+extern crate futures;
+extern crate tokio;
 
-use shiplift::{Docker, ExecContainerOptions};
+use shiplift::{DockerApi, new_docker, ExecContainerOptions};
+use futures::{future, Future, Stream};
 use std::env;
 
-fn main() {
-    let docker = Docker::new(None).unwrap();
-    let options = ExecContainerOptions::builder()
+fn get_opts() -> ExecContainerOptions {
+    ExecContainerOptions::builder()
         .cmd(vec![
             "bash",
             "-c",
@@ -14,14 +17,26 @@ fn main() {
         .env(vec!["VAR=value"])
         .attach_stdout(true)
         .attach_stderr(true)
-        .build();
-    if let Some(id) = env::args().nth(1) {
-        match docker.containers().get(&id).exec(&options) {
-            Ok(res) => {
-                println!("Stdout: {}", res.stdout);
-                println!("Stderr: {}", res.stderr);
-            }
-            Err(err) => println!("An error occured: {:?}", err),
+        .build()
+}
+
+fn main() {
+    let id = match env::args().nth(1) {
+        Some(val) => val,
+        None => {
+            println!("Not enough arguments");
+            return;
         }
-    }
+    };
+
+    let work = future::lazy(move||  {
+        let docker: Box<DockerApi> = new_docker(None).unwrap();
+        docker
+            .container(id.into())
+            .exec(&get_opts())
+            .for_each(|a| Ok(println!("{:?}", a)))
+            .map_err(|e| println!("{:#?}", e))
+    });
+
+    tokio::runtime::run(work);
 }

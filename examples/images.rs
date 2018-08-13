@@ -1,12 +1,21 @@
 extern crate shiplift;
+extern crate http;
+extern crate futures;
+extern crate tokio;
 
-use shiplift::Docker;
+use shiplift::{DockerApi, new_docker};
+use futures::{future, Future};
 
 fn main() {
-    let docker = Docker::new(None).unwrap();
-    let images = docker.images().list(&Default::default()).unwrap();
-    println!("docker images in stock");
-    for i in images {
-        println!("{:?}", i.RepoTags);
-    }
+    let work = future::lazy(|| {
+        let docker: Box<DockerApi> = new_docker(None).unwrap();
+
+        docker
+            .images()
+            .list(&Default::default())
+            .and_then(|a| Ok(println!("{:#?}", a)))
+            .map_err(|e| eprintln!("{:?}", e))
+    });
+
+    tokio::runtime::run(work);
 }

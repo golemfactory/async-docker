@@ -1,10 +1,13 @@
-use flate2::write::GzEncoder;
-use flate2::Compression;
+extern crate tar;
+extern crate flate2;
+
+use self::flate2::write::GzEncoder;
+use self::flate2::Compression;
 
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
-use tar::Archive;
+use self::tar::Archive;
 
 use errors::Result;
 

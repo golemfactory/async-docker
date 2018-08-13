@@ -1,25 +1,34 @@
 extern crate shiplift;
+extern crate http;
+extern crate futures;
+extern crate tokio;
 
-use shiplift::{Docker, ContainerArchiveOptions};
+
 use std::env;
+use shiplift::communicate::DockerApi;
+use shiplift::communicate::new_docker;
+use futures::Stream;
+use futures::future;
+use futures::Future;
 
-// args:
-//      container
-//      docker container directory path
-//      local file/directory path
 fn main() {
-    let docker = Docker::new(None).unwrap();
-
-    if env::args().len() < 3 {
+    if env::args().count() < 2 {
+        println!("Too few arguments (<2).");
         return;
     }
 
-    let options = ContainerArchiveOptions::builder()
-        .local_path(env::args().nth(3).unwrap())
-        .path(env::args().nth(2).unwrap())
-        .build();
+    let container = env::args().nth(1).unwrap();
+    let remote_path = env::args().nth(2).unwrap();
 
+    let work = future::lazy(move || {
+        let docker: Box<DockerApi> = new_docker(None).unwrap();
 
-    let id = env::args().nth(1).unwrap();
-    docker.containers().get(&id).archive_push(&options);
+        docker
+            .container(container.into())
+            .archive_get(remote_path.as_str())
+            .for_each(|a| Ok(println!("{:?}", a)))
+            .map_err(|a| eprintln!("{:?}", a))
+    });
+
+    tokio::runtime::run(work);
 }
