@@ -2,6 +2,7 @@
 
 use hyper::StatusCode;
 
+
 error_chain! {
     types {
         Error, ErrorKind, ResultExt, Result;
@@ -11,7 +12,7 @@ error_chain! {
         EnvVar(::std::env::VarError);
         Io(::std::io::Error);
         Hyper(::hyper::Error);
-        OpenSSL(::openssl::error::ErrorStack) #[cfg(feature = "ssl")];
+        OpenSSL(openssl::error::ErrorStack) #[cfg(feature = "ssl")];
         SerdeJsonError(::serde_json::error::Error);
         InvalidUri(::http::uri::InvalidUri);
         Http(::http::Error);

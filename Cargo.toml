@@ -14,14 +14,10 @@ openssl = false
 # select feature by Cargo flag:
 # --cfg feature="${feature_name}"
 [features]
-default = [ "ssl" ]
+default = [ "without-ssl" ]
 
 ssl = [ "openssl", "hyper-openssl" ]
 without-ssl = []
-
-[features]
-default = []
-ssl = [ "openssl", "hyper-openssl"]
 
 
 [dependencies]
@@ -51,9 +47,6 @@ openssl = { version = "0.10", optional = true }
 [target.'cfg(unix)'.dependencies]
 tokio-uds = "0.2"
 unix_socket = "0.5"
-
-hyper-openssl = { version = "0.2", optional = true }
-openssl = { version = "0.9", optional = true }
 
 [dev-dependencies]
 env_logger = "0.4.0"
