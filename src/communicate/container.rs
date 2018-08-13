@@ -31,11 +31,12 @@ use futures::future;
 use hyper::Chunk;
 use transport::interact::Interact;
 use std::sync::Arc;
-use build::ContainerArchiveOptions;
+use build::ContainerArchivePutOptions;
 use tarball::tarball;
 use transport::interact::InteractApi;
 use transport::interact::InteractApiExt;
 use communicate::util::AsSlice;
+use std::path::Path;
 
 
 /// Interface for accessing and manipulating a docker container
@@ -102,10 +103,13 @@ impl Container
     }
 
     /// Exports the current docker container into a tarball
-    pub fn export(&self) -> impl Future<Item=(), Error=Error> + Send {
-        let args = format!("/containers/{}/export", self.id);
+    pub fn export(&self) -> impl Stream<Item=Chunk, Error=Error> + Send {
+        let path = format!("/containers/{}/export", self.id);
 
-        parse_to_file(self.interact.get(args.as_str()), "antonn")
+        self.interact.get(path.as_str())
+            .and_then(|a| a.map_err(Error::from))
+            .and_then(|a| Ok(a.into_body().map_err(Error::from)))
+            .flatten_stream()
     }
 
     /// Returns a stream of stats specific to this container instance
@@ -241,22 +245,7 @@ impl Container
             .flatten_stream();
 
         tty::decode(body_future)
-/*
-        let path = Some(format!("/exec/{}/start", id));
-        let query : Option<String> = None;
-        let body : Option<String> = Some("{}".to_string());
-        self.interact.post_json(args)
-            .and_then(|future| {
-                debug!(">>> future");
-                future.map_err(Error::from)
-            })
-            .and_then(|response| {
-                debug!(">>> Response");
-                debug!("{:?}", response.headers());
-                future::ok(tty::decode(response.into_body().map_err(Error::from)))
-            })
-            .flatten_stream()
-*/  }
+    }
 
     pub fn exec(&self, opts: &ExecContainerOptions)
         -> impl Stream<Item=(u32, Chunk), Error=Error>
@@ -267,13 +256,25 @@ impl Container
             .flatten_stream()
     }
 
-    pub fn archive_put(&self, opts: &ContainerArchiveOptions)
+    pub fn archive_get(&self, pth: &str) -> impl Stream<Item=Chunk, Error=Error>
+    {
+        let path = format!("/containers/{}/archive", self.id);
+        let query = build_simple_query("path", Some(pth));
+        let args = (path.as_str(), query.as_slice());
+
+        self.interact.get(args)
+            .and_then(|a| a.map_err(Error::from))
+            .and_then(|a| Ok(a.into_body().map_err(Error::from)))
+            .flatten_stream()
+    }
+
+    pub fn archive_put(&self, opts: &ContainerArchivePutOptions)
             -> impl Future<Item=StatusCode, Error=Error> + Send
     {
         let mut bytes = vec![];
         tarball::dir(&mut bytes, &opts.local_path).unwrap();
 
-        let path = format!("/containers/{}/start", self.id);
+        let path = format!("/containers/{}/archive", self.id);
         let query = opts.serialize();
         let body = Some(Body::from(bytes));
         let args = (path.as_str(), query.as_slice(), body);

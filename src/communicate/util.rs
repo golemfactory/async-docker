@@ -26,7 +26,7 @@ use std::env;
 use std::io::Read;
 use std::time::Duration;
 use url::form_urlencoded;
-use build::ContainerArchiveOptions;
+use build::ContainerArchivePutOptions;
 use std::io::Cursor;
 use hyper::client::ResponseFuture;
 use hyper::Request;

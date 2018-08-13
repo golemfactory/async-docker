@@ -595,9 +595,9 @@ impl ExecContainerOptionsBuilder {
     }
 }
 
-//
+
 #[derive(Serialize)]
-pub struct ContainerArchiveOptions {
+pub struct ContainerArchivePutOptions {
     #[serde(skip)]
     pub local_path: String,
     #[serde(flatten)]
@@ -606,7 +606,7 @@ pub struct ContainerArchiveOptions {
     params_bool: HashMap<&'static str, bool>,
 }
 
-impl ContainerArchiveOptions {
+impl ContainerArchivePutOptions {
     /// return a new instance of a builder for options
     pub fn builder() -> ContainerArchiveOptionsBuilder {
         ContainerArchiveOptionsBuilder::new()
@@ -638,7 +638,7 @@ impl ContainerArchiveOptionsBuilder {
         }
     }
 
-    pub fn path(&mut self, cmds: String) -> &mut ContainerArchiveOptionsBuilder {
+    pub fn remote_path(&mut self, cmds: String) -> &mut ContainerArchiveOptionsBuilder {
         self.params.insert("path", cmds);
         self
     }
@@ -653,8 +653,8 @@ impl ContainerArchiveOptionsBuilder {
         self
     }
 
-    pub fn build(&self) -> ContainerArchiveOptions {
-        ContainerArchiveOptions {
+    pub fn build(&self) -> ContainerArchivePutOptions {
+        ContainerArchivePutOptions {
             local_path: self.local_path.clone(),
             params: self.params.clone(),
             params_bool: self.params_bool.clone(),
