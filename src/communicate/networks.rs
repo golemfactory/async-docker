@@ -42,6 +42,6 @@ impl Networks {
         let body = Some(Body::from(bytes));
         let args = (path, body);
 
-        parse_to_trait::<NetworkCreateInfo>(self.interact.post(args))
+        parse_to_trait::<NetworkCreateInfo>(self.interact.post_json(args))
     }
 }

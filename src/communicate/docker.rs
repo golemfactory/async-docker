@@ -44,6 +44,9 @@ use std::marker::PhantomData;
 use communicate::Container;
 use communicate::image::Image;
 use communicate::Images;
+use communicate::containers::Containers;
+use communicate::networks::Networks;
+use communicate::Network;
 
 
 /// Entry point interface for communicating with docker daemon
@@ -61,14 +64,23 @@ pub trait DockerApi
     /// Returns an iterator over streamed docker events
     fn events(&self, opts: &EventsOptions) -> Box<Stream<Item=Result<Event>, Error=Error> + Send>;
 
-    /// Exports an interface for interacting with docker containers
+    /// Exports an interface for interacting with docker container
     fn container(&self, id: Cow<'static, str>) -> Container;
+
+    /// Exports an interface for interacting with docker containers
+    fn containers(&self) -> Containers;
 
     /// Exports an interface for interacting with docker image
     fn image<'a>(&self, id: Cow<'a, str>) -> Image<'a>;
 
-    /// Exports an interface for interacting images
+    /// Exports an interface for interacting with images
     fn images(&self) -> Images;
+
+    /// Exports an interface for interacting with network
+    fn network<'a>(&self, id: Cow<'a, str>) -> Network<'a>;
+
+    /// Exports an interface for interacting with networks
+    fn networks(&self) -> Networks;
 }
 
 pub(crate) struct Docker<C>
@@ -124,6 +136,12 @@ impl <C> DockerApi for Docker<C>
         Container::new(interact, id)
     }
 
+    fn containers(&self) -> Containers
+    {
+        let interact = self.interact.clone();
+        Containers::new(interact)
+    }
+
     fn image<'a>(&self, id: Cow<'a, str>) -> Image<'a>
     {
         let interact = self.interact.clone();
@@ -134,6 +152,18 @@ impl <C> DockerApi for Docker<C>
     {
         let interact = self.interact.clone();
         Images::new(interact)
+    }
+
+    fn network<'a>(&self, id: Cow<'a, str>) -> Network<'a>
+    {
+        let interact = self.interact.clone();
+        Network::new(interact, id)
+    }
+
+    fn networks(&self) -> Networks
+    {
+        let interact = self.interact.clone();
+        Networks::new(interact)
     }
 }
 

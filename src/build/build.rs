@@ -1014,7 +1014,6 @@ impl NetworkListOptions {
 /// Interface for creating new docker network
 #[derive(Serialize)]
 pub struct NetworkCreateOptions {
-    pub name: Option<String>,
     #[serde(flatten)]
     params: HashMap<&'static str, String>,
     #[serde(flatten)]
@@ -1051,7 +1050,6 @@ impl NetworkCreateOptions {
 
 #[derive(Default)]
 pub struct NetworkCreateOptionsBuilder {
-    name: Option<String>,
     params: HashMap<&'static str, String>,
     params_hash: HashMap<String, Vec<HashMap<String, String>>>,
 }
@@ -1063,7 +1061,6 @@ impl NetworkCreateOptionsBuilder {
 
         params.insert("Name", name.to_owned());
         NetworkCreateOptionsBuilder {
-            name: None,
             params,
             params_hash,
         }
@@ -1091,7 +1088,6 @@ impl NetworkCreateOptionsBuilder {
 
     pub fn build(&self) -> NetworkCreateOptions {
         NetworkCreateOptions {
-            name: self.name.clone(),
             params: self.params.clone(),
             params_hash: self.params_hash.clone(),
         }

@@ -4,7 +4,6 @@ extern crate futures;
 extern crate tokio;
 
 use shiplift::{DockerApi, new_docker};
-use http::Uri;
 use futures::{future, Future};
 
 fn main() {

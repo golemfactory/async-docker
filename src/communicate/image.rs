@@ -18,6 +18,7 @@ use transport::interact::Interact;
 use std::sync::Arc;
 use transport::interact::InteractApi;
 use transport::interact::InteractApiExt;
+use hyper::Chunk;
 
 
 /// Interface for accessing and manipulating a named docker image
@@ -95,9 +96,12 @@ impl<'b> Image<'b>
     }
 
     /// Export this image to a tarball
-    pub fn export(&self) -> impl Future<Item=(), Error=Error> + Send {
-        let args = format!("/images/{}/export", self.name);
+    pub fn export(&self) -> impl Stream<Item=Chunk, Error=Error> + Send {
+        let path = format!("/images/{}/get", self.name);
 
-        parse_to_file(self.interact.get(args.as_str()), "antonn")
+        self.interact.get(path.as_str())
+            .and_then(|a| a.map_err(Error::from))
+            .and_then(|a| Ok(a.into_body().map_err(Error::from)))
+            .flatten_stream()
     }
 }

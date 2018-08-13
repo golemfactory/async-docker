@@ -79,12 +79,11 @@ pub(crate) fn parse_to_trait<T>(future: ResponseFutureWrapper) -> impl Future<It
 {
     future
         .and_then(|w| w
-
             .and_then(|response|
                 response.into_body().concat2())
             .map_err(Error::from)
             .and_then(|chunk| {
-                debug!("{:?}", chunk.as_ref());
+                println!("{:?}", chunk.as_ref());
                 de_from_str::<T>(str::from_utf8(chunk.as_ref())?)
                     .map_err(Error::from)
             })

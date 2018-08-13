@@ -45,6 +45,6 @@ impl Containers {
         let body = Some(Body::from(data));
         let args = (path, query.as_slice(), body);
 
-        parse_to_trait(self.interact.post(args))
+        parse_to_trait(self.interact.post_json(args))
     }
 }
