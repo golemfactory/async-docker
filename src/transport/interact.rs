@@ -4,13 +4,10 @@ use hyper::Client;
 use transport::parse::ResponseFutureWrapper;
 use Error;
 use futures::future;
-use hyper::Body;
-use std::fmt::Display;
 use hyper::Method;
 use transport::parse::compose_uri;
 use hyper::client::connect::Connect;
 use futures::Future;
-use hyper::HeaderMap;
 use http::header::CONTENT_TYPE;
 use communicate::util::RequestArgs;
 use communicate::util::IntoRequestArgs;
@@ -143,7 +140,7 @@ impl <I> InteractApi for Interact<I>
                 }
                 Ok(request)
             })
-            .and_then( move |mut request| {
+            .and_then( move |request| {
                 Ok(client.request(request))
             })
         )

@@ -4,7 +4,6 @@ extern crate tokio_uds;
 extern crate unix_socket;
 use self::tokio_uds::UnixStream;
 
-use tokio::reactor::Handle;
 use std::path::PathBuf;
 use hyper::client::connect::Connect;
 use tokio::io;
@@ -24,19 +23,16 @@ use docker::Docker;
 use errors::Result;
 use std::sync::Arc;
 use communicate::docker::DockerApi;
-use std::marker::PhantomData;
 
 pub struct UnixConnector
 {
-    handle: Handle,
     path: PathBuf
 }
 
 impl UnixConnector {
-    pub(crate) fn new(handle: Handle, path: PathBuf) -> Self
+    pub(crate) fn new(path: PathBuf) -> Self
     {
         Self {
-            handle,
             path
         }
     }
@@ -69,14 +65,14 @@ pub(crate) type UnixDocker = Docker<UnixConnector>;
 impl Docker<UnixConnector> {
     pub(crate) fn new(host: Uri) -> Result<Box<DockerApi>>
     {
-        let path = format!("/{}{}", host.authority().unwrap(), host.path());
+        let path = format!("/{}{}", host.authority_part().unwrap(), host.path());
         let mut parts = host.into_parts();
         parts.authority = Some(Authority::from_str("v1.37").unwrap());
         parts.scheme = Some(Scheme::from_str("http").unwrap());
         let host = Uri::from_parts(parts).unwrap();
         let interact = Interact::new(
             Client::builder().build(
-                UnixConnector::new(Handle::current(), PathBuf::from(path))
+                UnixConnector::new(PathBuf::from(path))
             ),
             host
         );

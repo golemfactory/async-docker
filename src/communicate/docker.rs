@@ -1,15 +1,10 @@
 use hyper::client::connect::Connect;
-use hyper::Client;
 use futures::Future;
-use futures::future;
-use std::fmt::Display;
-use hyper::Body;
 use hyper::rt::Stream;
 
 use errors::{Result, Error, ErrorKind};
 
 use transport::status_code;
-use transport::compose_uri;
 use transport::parse_to_trait;
 use transport::parse_to_stream;
 use communicate::util::AsSlice;
@@ -21,20 +16,15 @@ use build::{
 };
 
 use representation::rep::{
-    Change, Container as ContainerRep, ContainerCreateInfo, ContainerDetails, Exit, History,
-    Image as ImageRep, ImageDetails, Info, NetworkCreateInfo, NetworkDetails as NetworkInfo,
-    SearchResult, Status, Top, Version, Stats, Event
+    Info, Version, Event
 };
 
 use hyper::Uri;
 use hyper::StatusCode;
-use hyper::Method;
-use transport::parse::ResponseFutureWrapper;
 use transport::interact::InteractApi;
 use transport::interact::InteractApiExt;
 use std::sync::Arc;
 use std::borrow::Cow;
-use errors::ErrorKind::InvalidUri;
 use super::tcp_docker::TcpDocker;
 #[cfg(target_os = "linux")]
 use super::unix_docker::UnixDocker;
@@ -172,7 +162,7 @@ fn default_uri(uri: Option<Uri>) -> Result<Uri> {
     match uri {
         None => match env::var(URI_ENV) {
             Ok(var) => var.parse().map_err(Error::from),
-            Err(e) => DEFAULT_URI.parse().map_err(Error::from),
+            Err(_) => DEFAULT_URI.parse().map_err(Error::from),
         },
         Some(x) => Ok(x)
     }

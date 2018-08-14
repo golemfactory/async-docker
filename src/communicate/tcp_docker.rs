@@ -7,7 +7,6 @@ use communicate::docker::Docker;
 use communicate::docker::DockerApi;
 use transport::interact::Interact;
 use std::sync::Arc;
-use std::marker::PhantomData;
 
 pub(super) type TcpDocker = Docker<HttpConnector>;
 

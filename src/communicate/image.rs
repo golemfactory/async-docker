@@ -1,4 +1,3 @@
-use communicate::docker::Docker;
 use representation::rep::ImageDetails;
 use representation::rep::History;
 use Error;
@@ -10,11 +9,7 @@ use errors::ErrorKind as EK;
 use futures::Stream;
 use transport::parse::parse_to_trait;
 use futures::Future;
-use transport::parse::parse_to_file;
-use hyper::client::connect::Connect;
-use std::option::Iter;
 use futures::future;
-use transport::interact::Interact;
 use std::sync::Arc;
 use transport::interact::InteractApi;
 use transport::interact::InteractApiExt;

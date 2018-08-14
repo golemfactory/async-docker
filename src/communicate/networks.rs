@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use transport::interact::InteractApi;
-use std::borrow::Cow;
 use build::NetworkListOptions;
 use Error;
 use futures::Future;

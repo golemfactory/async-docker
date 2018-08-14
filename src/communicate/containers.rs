@@ -7,7 +7,6 @@ use transport::parse::parse_to_trait;
 use Error;
 use build::ContainerOptions;
 use representation::rep::ContainerCreateInfo;
-use url::form_urlencoded;
 use communicate::util::build_simple_query;
 use hyper::Body;
 use transport::interact::InteractApiExt;

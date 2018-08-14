@@ -16,6 +16,3 @@ pub use image::Image;
 pub use images::Images;
 pub use network::Network;
 pub use docker::{DockerApi, new_docker};
-
-use representation;
-use build;

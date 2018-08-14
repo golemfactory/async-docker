@@ -2,74 +2,14 @@ pub use build::*;
 
 pub use std::marker::Sized;
 pub use errors::Error;
-use errors::ErrorKind as EK;
 /// Represents the result of all docker operations
 pub use errors::Result;
 
 use hyper::Body;
-use hyper::body::Payload;
-use hyper::Method;
-use hyper::{Client, Uri};
-use futures::Stream;
-
-use tarball;
-
-use representation::rep::{
-    Change, Container as ContainerRep, ContainerCreateInfo, ContainerDetails, Exit, History,
-    Image as ImageRep, ImageDetails, Info, NetworkCreateInfo, NetworkDetails as NetworkInfo,
-    SearchResult, Status, Top, Version, Stats,
-};
-
 use std::str;
-use std::borrow::Cow;
-use std::env;
-use std::io::Read;
-use std::time::Duration;
 use url::form_urlencoded;
-use build::ContainerArchivePutOptions;
-use std::io::Cursor;
-use hyper::client::ResponseFuture;
-use hyper::Request;
-use hyper::rt::Future;
-use hyper::client::connect::Connect;
-use hyper::client::HttpConnector;
-use http::uri::Parts;
-use http::uri::PathAndQuery;
-use std::str::FromStr;
-use http::uri;
-use hyper::Error as HyperError;
-
-use std::io;
-use hyper::client::connect::Destination;
-use hyper::client::connect::Connected;
-use http::uri::Scheme;
-use tokio::reactor::Handle;
-use std::net::IpAddr;
-use futures::future::FutureResult;
-use futures::future;
-use futures::Join;
-use std::io::Sink;
-use std::path::Path;
-use std::path::PathBuf;
-use http::uri::Authority;
-use serde::Serialize;
-use serde::Deserialize;
-use hyper::Chunk;
-use hyper::Response;
-use http::StatusCode;
-use std::fmt::Display;
-use std::fmt::Debug;
-use std::result::IntoIter;
-use representation::rep::Event;
-use futures::stream::StreamFuture;
-use futures::stream::Map;
-use futures::stream;
-use futures;
-
-use transport::*;
 use hyper::HeaderMap;
 use http::header::HeaderValue;
-use http::header::IntoHeaderName;
 use http::header::HeaderName;
 
 
@@ -112,14 +52,12 @@ pub(crate) struct RequestArgs<'a,'b> {
 }
 
 impl <'a,'b> RequestArgs<'a,'b>{
-    pub fn set_header<A,B>(&mut self, key: A, value: B) -> Result<()>
+    pub fn set_header<A,B>(&mut self, key: A, value: B)
         where
             A: Into<HeaderName>,
             B: Into<HeaderValue>,
     {
         self.header.insert(key.into(), value.into());
-
-        Ok(())
     }
 }
 

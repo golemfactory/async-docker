@@ -17,28 +17,29 @@ where
     W: Write,
 {
     let archive = Archive::new(GzEncoder::new(buf, Compression::Best));
-    {
-        let base_path = Path::new(path).canonicalize()?;
-        let mut base_path = base_path.as_path();
 
-        if base_path.is_file() {
-            // Unwrap can't return None, cause path cannot be root (`/`)
-            base_path = base_path.parent().unwrap();
-        }
+    let base_path = Path::new(path).canonicalize()?;
+    let mut base_path = base_path.as_path();
 
-        let mut append = |path: &Path| {
-            let canonical = path.canonicalize()?;
-            let relativized = canonical.strip_prefix(base_path).unwrap();
-
-            if path.is_dir() {
-                archive.append_dir(Path::new(relativized), &canonical)?
-            } else {
-                archive.append_file(Path::new(relativized), &mut File::open(&canonical)?)?
-            }
-            Ok(())
-        };
-        bundle(Path::new(path), &mut append, false)?;
+    if base_path.is_file() {
+        // Unwrap can't return None, cause file path cannot be root (`/`)
+        base_path = base_path.parent().expect("File has root filepath!");
     }
+
+    let mut append = |path: &Path| {
+        let canonical = path.canonicalize()?;
+        let relativized = canonical.strip_prefix(base_path)?;
+
+        if path.is_dir() {
+            archive.append_dir(Path::new(relativized), &canonical)?
+        } else {
+            archive.append_file(Path::new(relativized), &mut File::open(&canonical)?)?
+        }
+        Ok(())
+    };
+
+    bundle(Path::new(path), &mut append, false)?;
+
     archive.finish()?;
 
     Ok(())

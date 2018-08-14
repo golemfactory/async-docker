@@ -9,6 +9,7 @@ use http::StatusCode;
 use representation::rep::NetworkDetails;
 use transport::interact::InteractApiExt;
 use build::ContainerConnectionOptions;
+use communicate::util::AsSlice;
 
 /// Interface for accessing and manipulating a docker network
 pub struct Network<'b> {
@@ -51,15 +52,19 @@ impl<'b> Network<'b> {
     /// Connect container to network
     pub fn connect(&self, opts: &ContainerConnectionOptions) -> impl Future<Item=StatusCode, Error=Error> {
         let path = format!("/networks/{}/connect", self.id);
+        let query = opts.serialize();
+        let args = (path.as_str(), query.as_slice());
 
-        status_code(self.interact.post(path.as_str()))
+        status_code(self.interact.post(args))
     }
 
     /// Disconnect container to network
     pub fn disconnect(&self, opts: &ContainerConnectionOptions)
                       -> impl Future<Item=StatusCode, Error=Error> {
         let path = format!("/networks/{}/disconnect", self.id);
+        let query = opts.serialize();
+        let args = (path.as_str(), query.as_slice());
 
-        status_code(self.interact.post(path.as_str()))
+        status_code(self.interact.post(args))
     }
 }

@@ -1,48 +1,33 @@
 //! Transports for communicating with the docker daemon
 extern crate tokio_codec;
 
-use errors::{ErrorKind, Result};
+use Result;
 
-use http;
 use hyper::Body;
 use hyper::Method;
-use hyper::Client;
 use hyper::Uri;
-use hyper::client::connect::Connect;
-use std::fmt;
 use hyper::Request;
 use hyper::client::ResponseFuture;
 use hyper::rt::Future;
 use std::convert::Into;
 
-use errors::ErrorKind as EK;
-use hyper::client::HttpConnector;
 use errors::Error;
-use std::error::Error as StdError;
 use futures::future;
 use http::StatusCode;
 use std::fmt::Debug;
 use futures::Stream;
 use super::lines::Lines;
-use std::fmt::Display;
 use http::uri::PathAndQuery;
 use serde_json::from_str as de_from_str;
 use std::str::FromStr;
 use std::str;
-
 use tokio::fs::File;
 use std::path::Path;
-use tokio::executor::thread_pool::Builder;
-use self::tokio_codec::FramedRead;
 use self::tokio_codec::FramedWrite;
 use self::tokio_codec::BytesCodec;
-use tokio::io::AsyncWrite;
-use tokio::fs::file::CreateFuture;
 use futures::Sink;
-use std::io;
 use hyper::Chunk;
 use bytes::Bytes;
-use futures::stream::Forward;
 
 pub type ResponseFutureWrapper = Box<Future<Item=ResponseFuture, Error=Error> + Send>;
 
@@ -149,7 +134,7 @@ pub(crate) fn parse_to_stream<T>(future: ResponseFutureWrapper) ->
         .flatten_stream()
 }
 
-
+#[allow(dead_code)]
 pub(crate) fn parse_to_file(future: ResponseFutureWrapper, filepath: &'static str)
     -> impl Future<Item=(), Error=Error>
 {

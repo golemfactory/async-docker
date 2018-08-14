@@ -1,4 +1,3 @@
-use hyper::client::connect::Connect;
 use std::borrow::Cow;
 use futures::Future;
 use representation::rep::ContainerDetails;
@@ -17,7 +16,6 @@ use transport::parse::status_code;
 use representation::rep::Change;
 use representation::rep::Stats;
 use representation::rep::Top;
-use transport::parse::parse_to_file;
 use http::StatusCode;
 use hyper::Body;
 use std::time::Duration;
@@ -29,14 +27,12 @@ use errors::ErrorKind as EK;
 use transport::tty;
 use futures::future;
 use hyper::Chunk;
-use transport::interact::Interact;
 use std::sync::Arc;
 use build::ContainerArchivePutOptions;
 use tarball::tarball;
 use transport::interact::InteractApi;
 use transport::interact::InteractApiExt;
 use communicate::util::AsSlice;
-use std::path::Path;
 
 
 /// Interface for accessing and manipulating a docker container
@@ -49,7 +45,6 @@ pub struct Container
 impl Clone for Container
 {
     fn clone(&self) -> Container {
-        let interact = self.interact.clone();
         Container::new(self.interact.clone(), self.id.clone())
     }
 }

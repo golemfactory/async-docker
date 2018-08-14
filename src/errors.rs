@@ -21,6 +21,7 @@ error_chain! {
         InvalidUriParts(::http::uri::InvalidUriParts);
         InvalidHttpHeaderName(::hyper::header::InvalidHeaderName);
         InvalidHttpHeaderValue(::hyper::header::InvalidHeaderValue);
+        StripPrefixError(::std::path::StripPrefixError);
     }
 
     errors {
@@ -72,6 +73,11 @@ error_chain! {
         InvalidScheme {
             description("Invalid uri scheme")
                 display("Invalid uri scheme")
+        }
+
+        EmptyPath {
+            description("Invalid path - empty parent")
+                display("Invalid uri ")
         }
     }
 

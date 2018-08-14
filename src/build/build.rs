@@ -261,7 +261,8 @@ impl ContainerListOptionsBuilder {
         // structure is a a json encoded object mapping string keys to a list
         // of string values
         self.params
-            .insert("filters", ser_to_string(&param).unwrap());
+            .insert("filters", ser_to_string(&param)
+                .expect("Filter args serialization failed"));
         self
     }
 
@@ -1113,8 +1114,9 @@ impl ContainerConnectionOptions {
     }
 
     /// serialize options as a string. returns None if no options are defined
-    pub fn serialize(&self) -> Result<String> {
-        ser_to_string(&self).map_err(Error::from)
+    pub fn serialize(&self) -> Option<String> {
+        Some(ser_to_string(&self)
+            .expect("ContainerConnectionOptions serialization failed"))
     }
 
     pub fn parse_from<'a, K, V>(
