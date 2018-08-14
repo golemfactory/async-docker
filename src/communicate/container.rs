@@ -267,14 +267,16 @@ impl Container
             -> impl Future<Item=StatusCode, Error=Error> + Send
     {
         let mut bytes = vec![];
-        tarball::dir(&mut bytes, &opts.local_path).unwrap();
-
         let path = format!("/containers/{}/archive", self.id);
         let query = opts.serialize();
-        let body = Some(Body::from(bytes));
-        let args = (path.as_str(), query.as_slice(), body);
+        let interact = self.interact.clone();
 
-        status_code(self.interact.put(args))
+        future::result(tarball::dir(&mut bytes, &opts.local_path))
+            .and_then(move |_| {
+                let body = Some(Body::from(bytes));
+                let args = (path.as_str(), query.as_slice(), body);
+                status_code(interact.put(args))
+            })
     }
 
     // todo attach, attach/ws, copy

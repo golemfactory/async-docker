@@ -309,21 +309,24 @@ where
     V: Serialize,
     I: Iterator<Item = &'a str>,
 {
-    let local_key = key_path.next().unwrap();
+    let local_key = key_path.next().unwrap_or_default();
 
     if key_path.peek().is_some() {
         let node = parent_node
             .as_object_mut()
-            .unwrap()
+            .expect("Parent is not an object")
             .entry(local_key.to_string())
             .or_insert(Value::Object(Map::new()));
 
         insert(key_path, value, node);
     } else {
-        parent_node.as_object_mut().unwrap().insert(
-            local_key.to_string(),
-            de_to_value(value).unwrap(),
-        );
+        parent_node
+            .as_object_mut()
+            .expect("Parent is not an object")
+            .insert(
+                local_key.to_string(),
+                de_to_value(value).expect("Error during deserialization"),
+            );
     }
 }
 
@@ -787,7 +790,8 @@ impl EventsOptionsBuilder {
             };
         }
         self.params
-            .insert("filters", ser_to_string(&params).unwrap());
+            .insert("filters", ser_to_string(&params)
+                .expect("Error during serialization"));
         self
     }
 
@@ -932,7 +936,8 @@ impl ImageListOptionsBuilder {
         // structure is a a json encoded object mapping string keys to a list
         // of string values
         self.params
-            .insert("filters", ser_to_string(&param).unwrap());
+            .insert("filters", ser_to_string(&param)
+                .expect("Error during deserialization"));
         self
     }
 
@@ -1042,7 +1047,8 @@ impl NetworkCreateOptions {
     {
         for (k, v) in params.iter() {
             let key = k.to_string();
-            let value = de_to_value(v).unwrap();
+            let value = de_to_value(v)
+                .expect("Error during deserialization");
 
             body.insert(key, value);
         }
@@ -1129,7 +1135,8 @@ impl ContainerConnectionOptions {
     {
         for (k, v) in params.iter() {
             let key = k.to_string();
-            let value = de_to_value(v).unwrap();
+            let value = de_to_value(v)
+                .expect("Error during deserialization");
 
             body.insert(key, value);
         }
@@ -1155,7 +1162,7 @@ mod tests {
 
         assert_eq!(
             r#"{"HostConfig":{},"Image":"test_image"}"#,
-            options.serialize().unwrap()
+            options.serialize().expect("Error during serialization")
         );
     }
 
@@ -1167,7 +1174,7 @@ mod tests {
 
         assert_eq!(
             r#"{"Env":["foo","bar"],"HostConfig":{},"Image":"test_image"}"#,
-            options.serialize().unwrap()
+            options.serialize().expect("Error during serialization")
         );
     }
 
@@ -1179,7 +1186,7 @@ mod tests {
 
         assert_eq!(
             r#"{"HostConfig":{"NetworkMode":"host"},"Image":"test_image"}"#,
-            options.serialize().unwrap()
+            options.serialize().expect("Error during serialization")
         );
     }
 
@@ -1192,7 +1199,7 @@ mod tests {
 
         assert_eq!(
             r#"{"HostConfig":{"LogConfig":{"Type":"fluentd"}},"Image":"test_image"}"#,
-            options.serialize().unwrap()
+            options.serialize().expect("Error during serialization")
         );
     }
 
@@ -1204,7 +1211,7 @@ mod tests {
             .build();
 
         assert_eq!(r#"{"HostConfig":{"RestartPolicy":{"MaximumRetryCount":10,"Name":"on-failure"}},"Image":"test_image"}"#,
-                   options.serialize().unwrap());
+                   options.serialize().expect("Error during serialization"));
 
         options = ContainerOptionsBuilder::new("test_image")
             .restart_policy("always", 0)
@@ -1212,7 +1219,7 @@ mod tests {
 
         assert_eq!(
             r#"{"HostConfig":{"RestartPolicy":{"Name":"always"}},"Image":"test_image"}"#,
-            options.serialize().unwrap()
+            options.serialize().expect("Error during serialization")
         );
     }
 }

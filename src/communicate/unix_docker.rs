@@ -65,11 +65,17 @@ pub(crate) type UnixDocker = Docker<UnixConnector>;
 impl Docker<UnixConnector> {
     pub(crate) fn new(host: Uri) -> Result<Box<DockerApi>>
     {
-        let path = format!("/{}{}", host.authority_part().unwrap(), host.path());
+        let path = format!("/{}{}",
+                           host.authority_part().map(|a| a.as_str()).unwrap_or_default(),
+                           host.path()
+        );
         let mut parts = host.into_parts();
-        parts.authority = Some(Authority::from_str("v1.37").unwrap());
-        parts.scheme = Some(Scheme::from_str("http").unwrap());
-        let host = Uri::from_parts(parts).unwrap();
+        parts.authority = Some(Authority::from_str("v1.37")
+            .expect("Constant authority parsing error"));
+        parts.scheme = Some(Scheme::from_str("http")
+            .expect("Constant scheme parsing error"));
+
+        let host = Uri::from_parts(parts)?;
         let interact = Interact::new(
             Client::builder().build(
                 UnixConnector::new(PathBuf::from(path))
