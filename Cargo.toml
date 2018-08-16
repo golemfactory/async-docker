@@ -4,9 +4,9 @@ name = "async_docker"
 version = "0.1.0"
 authors = ["destruktiw"]
 description = "A Rust asynchronous interface for Docker API"
-homepage = "https://github.com/destruktiw/async_docker"
-repository = "https://github.com/destruktiw/async_docker"
-keywords = ["docker", "unix", "containers", "hyper", "tokio", "async", "asynchronous"]
+homepage = "https://github.com/destruktiw/async-docker"
+repository = "https://github.com/destruktiw/async-docker"
+keywords = ["docker", "unix", "containers", "async", "asynchronous"]
 license = "MIT"
 openssl = false
 
@@ -25,9 +25,7 @@ flate2 = "0.2"
 hyper = "0.12"
 
 
-jed = "0.1"
 log = "0.3"
-rustc-serialize = "0.3"
 tar = "0.3"
 url = "0.5"
 serde = "1.0"
@@ -46,6 +44,3 @@ openssl = { version = "0.10", optional = true }
 [target.'cfg(unix)'.dependencies]
 tokio-uds = "0.2"
 unix_socket = "0.5"
-
-[dev-dependencies]
-env_logger = "0.4.0"
