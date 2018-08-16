@@ -1,9 +1,9 @@
-extern crate shiplift;
+extern crate async_docker;
 extern crate http;
 extern crate futures;
 extern crate tokio;
 
-use shiplift::{DockerApi, new_docker, BuildOptions};
+use async_docker::{DockerApi, new_docker, BuildOptions};
 use futures::{future, Future};
 use std::env;
 
@@ -17,7 +17,7 @@ fn main() {
     };
 
     let work = future::lazy(|| {
-        let opts = BuildOptions::builder(path).tag("shiplift_test").build();
+        let opts = BuildOptions::builder(path).tag("async_docker_test").build();
         let docker: Box<DockerApi> = new_docker(None).unwrap();
 
         docker

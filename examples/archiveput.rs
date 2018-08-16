@@ -1,12 +1,12 @@
-extern crate shiplift;
+extern crate async_docker;
 extern crate http;
 extern crate futures;
 extern crate tokio;
 
-use shiplift::{DockerApi, new_docker};
+use async_docker::{DockerApi, new_docker};
 use futures::{future, Future};
 use std::env;
-use shiplift::build::ContainerArchiveOptionsBuilder;
+use async_docker::build::ContainerArchiveOptionsBuilder;
 
 fn main() {
     if env::args().count() < 3 {

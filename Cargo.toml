@@ -1,13 +1,12 @@
 [package]
 
-name = "shiplift"
-version = "0.3.2"
-authors = ["softprops <d.tangren@gmail.com>"]
-description = "A Rust interface for maneuvering Docker containers"
-documentation = "https://softprops.github.io/shiplift"
-homepage = "https://github.com/softprops/shiplift"
-repository = "https://github.com/softprops/shiplift"
-keywords = ["docker", "unix", "containers", "hyper", "ship"]
+name = "async_docker"
+version = "0.1.0"
+authors = ["destruktiw"]
+description = "A Rust asynchronous interface for Docker API"
+homepage = "https://github.com/destruktiw/async_docker"
+repository = "https://github.com/destruktiw/async_docker"
+keywords = ["docker", "unix", "containers", "hyper", "tokio", "async", "asynchronous"]
 license = "MIT"
 openssl = false
 

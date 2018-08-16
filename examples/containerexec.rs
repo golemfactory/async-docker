@@ -1,9 +1,9 @@
-extern crate shiplift;
+extern crate async_docker;
 extern crate http;
 extern crate futures;
 extern crate tokio;
 
-use shiplift::{DockerApi, new_docker, ExecContainerOptions};
+use async_docker::{DockerApi, new_docker, ExecContainerOptions};
 use futures::{future, Future, Stream};
 use std::env;
 

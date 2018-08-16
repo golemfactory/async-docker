@@ -3,9 +3,9 @@
 //! # examples
 //!
 //! ```no_run
-//! extern crate shiplift;
+//! extern crate async_docker;
 //!
-//! let docker = shiplift::Docker::new();
+//! let docker = async_docker::Docker::new();
 //! let images = docker.images().list(&Default::default()).unwrap();
 //! debug!("docker images in stock");
 //! for i in images {

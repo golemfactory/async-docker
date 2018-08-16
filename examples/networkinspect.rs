@@ -1,12 +1,12 @@
-extern crate shiplift;
+extern crate async_docker;
 extern crate http;
 extern crate futures;
 extern crate tokio;
 
 
 use std::env;
-use shiplift::communicate::DockerApi;
-use shiplift::communicate::new_docker;
+use async_docker::communicate::DockerApi;
+use async_docker::communicate::new_docker;
 use futures::future;
 use futures::Future;
 fn main() {
