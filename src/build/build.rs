@@ -297,8 +297,11 @@ impl ContainerListOptionsBuilder {
 #[derive(Serialize)]
 pub struct ContainerOptions {
     pub name: Option<String>,
+    #[serde(flatten)]
     params: HashMap<&'static str, Value>,
+    #[serde(flatten)]
     params_list: HashMap<&'static str, Vec<String>>,
+    #[serde(flatten)]
     params_hash: HashMap<String, Vec<HashMap<String, String>>>,
 }
 
