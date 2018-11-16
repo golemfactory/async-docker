@@ -4,44 +4,39 @@ extern crate tokio_uds;
 extern crate unix_socket;
 use self::tokio_uds::UnixStream;
 
-use std::path::PathBuf;
-use hyper::client::connect::Connect;
-use tokio::io;
-use tokio::prelude::Future;
-use hyper::client::connect::Connected;
-use hyper::client::connect::Destination;
-use tokio::prelude::future;
-use hyper::Uri;
-use hyper::Client;
 use http::uri::Authority;
 use http::uri::Scheme;
+use hyper::client::connect::Connect;
+use hyper::client::connect::Connected;
+use hyper::client::connect::Destination;
+use hyper::Client;
+use hyper::Uri;
+use std::path::PathBuf;
 use std::str::FromStr;
+use tokio::io;
+use tokio::prelude::future;
+use tokio::prelude::Future;
 
-
-use transport::interact::Interact;
+use communicate::docker::DockerApi;
 use docker::Docker;
 use errors::Result;
 use std::sync::Arc;
-use communicate::docker::DockerApi;
+use transport::interact::Interact;
 
-pub struct UnixConnector
-{
-    path: PathBuf
+pub struct UnixConnector {
+    path: PathBuf,
 }
 
 impl UnixConnector {
-    pub(crate) fn new(path: PathBuf) -> Self
-    {
-        Self {
-            path
-        }
+    pub(crate) fn new(path: PathBuf) -> Self {
+        Self { path }
     }
 }
 
 impl Connect for UnixConnector {
     type Transport = UnixStream;
     type Error = io::Error;
-    type Future = Box<Future<Item=(UnixStream, Connected), Error=io::Error> + Send>;
+    type Future = Box<Future<Item = (UnixStream, Connected), Error = io::Error> + Send>;
 
     fn connect(&self, dst: Destination) -> Self::Future {
         if dst.scheme() != "http" {
@@ -63,24 +58,23 @@ impl Connect for UnixConnector {
 pub(crate) type UnixDocker = Docker<UnixConnector>;
 
 impl Docker<UnixConnector> {
-    pub(crate) fn new(host: Uri) -> Result<Box<DockerApi>>
-    {
-        let path = format!("/{}{}",
-                           host.authority_part().map(|a| a.as_str()).unwrap_or_default(),
-                           host.path()
+    pub(crate) fn new(host: Uri) -> Result<Box<DockerApi>> {
+        let path = format!(
+            "/{}{}",
+            host.authority_part()
+                .map(|a| a.as_str())
+                .unwrap_or_default(),
+            host.path()
         );
         let mut parts = host.into_parts();
-        parts.authority = Some(Authority::from_str("v1.37")
-            .expect("Constant authority parsing error"));
-        parts.scheme = Some(Scheme::from_str("http")
-            .expect("Constant scheme parsing error"));
+        parts.authority =
+            Some(Authority::from_str("v1.37").expect("Constant authority parsing error"));
+        parts.scheme = Some(Scheme::from_str("http").expect("Constant scheme parsing error"));
 
         let host = Uri::from_parts(parts)?;
         let interact = Interact::new(
-            Client::builder().build(
-                UnixConnector::new(PathBuf::from(path))
-            ),
-            host
+            Client::builder().build(UnixConnector::new(PathBuf::from(path))),
+            host,
         );
 
         let docker = Self::new_inner(Arc::new(interact));

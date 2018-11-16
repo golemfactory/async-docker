@@ -4,10 +4,10 @@ extern crate serde_json;
 
 use self::serde::Serialize;
 use self::serde_json::map::Map;
-use self::serde_json::Number;
-use self::serde_json::Value;
 use self::serde_json::to_string as ser_to_string;
 use self::serde_json::to_value as de_to_value;
+use self::serde_json::Number;
+use self::serde_json::Value;
 
 use std::cmp::Eq;
 use std::collections::{BTreeMap, HashMap};
@@ -180,8 +180,8 @@ impl BuildOptionsBuilder {
 
     /// `bridge`, `host`, `none`, `container:<name|id>`, or a custom network name.
     pub fn network_mode<T>(&mut self, t: T) -> &mut BuildOptionsBuilder
-        where
-            T: Into<String>,
+    where
+        T: Into<String>,
     {
         self.params.insert("networkmode", t.into());
         self
@@ -260,9 +260,10 @@ impl ContainerListOptionsBuilder {
 
         // structure is a a json encoded object mapping string keys to a list
         // of string values
-        self.params
-            .insert("filters", ser_to_string(&param)
-                .expect("Filter args serialization failed"));
+        self.params.insert(
+            "filters",
+            ser_to_string(&param).expect("Filter args serialization failed"),
+        );
         self
     }
 
@@ -602,7 +603,6 @@ impl ExecContainerOptionsBuilder {
     }
 }
 
-
 #[derive(Serialize)]
 pub struct ContainerArchivePutOptions {
     #[serde(skip)]
@@ -792,9 +792,10 @@ impl EventsOptionsBuilder {
                 }
             };
         }
-        self.params
-            .insert("filters", ser_to_string(&params)
-                .expect("Error during serialization"));
+        self.params.insert(
+            "filters",
+            ser_to_string(&params).expect("Error during serialization"),
+        );
         self
     }
 
@@ -938,9 +939,10 @@ impl ImageListOptionsBuilder {
         }
         // structure is a a json encoded object mapping string keys to a list
         // of string values
-        self.params
-            .insert("filters", ser_to_string(&param)
-                .expect("Error during deserialization"));
+        self.params.insert(
+            "filters",
+            ser_to_string(&param).expect("Error during deserialization"),
+        );
         self
     }
 
@@ -1050,8 +1052,7 @@ impl NetworkCreateOptions {
     {
         for (k, v) in params.iter() {
             let key = k.to_string();
-            let value = de_to_value(v)
-                .expect("Error during deserialization");
+            let value = de_to_value(v).expect("Error during deserialization");
 
             body.insert(key, value);
         }
@@ -1124,8 +1125,7 @@ impl ContainerConnectionOptions {
 
     /// serialize options as a string. returns None if no options are defined
     pub fn serialize(&self) -> Option<String> {
-        Some(ser_to_string(&self)
-            .expect("ContainerConnectionOptions serialization failed"))
+        Some(ser_to_string(&self).expect("ContainerConnectionOptions serialization failed"))
     }
 
     pub fn parse_from<'a, K, V>(
@@ -1138,8 +1138,7 @@ impl ContainerConnectionOptions {
     {
         for (k, v) in params.iter() {
             let key = k.to_string();
-            let value = de_to_value(v)
-                .expect("Error during deserialization");
+            let value = de_to_value(v).expect("Error during deserialization");
 
             body.insert(key, value);
         }

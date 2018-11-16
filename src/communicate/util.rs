@@ -1,24 +1,23 @@
 pub use build::*;
 
-pub use std::marker::Sized;
 pub use errors::Error;
 /// Represents the result of all docker operations
 pub use errors::Result;
+pub use std::marker::Sized;
 
+use http::header::HeaderName;
+use http::header::HeaderValue;
 use hyper::Body;
+use hyper::HeaderMap;
 use std::str;
 use url::form_urlencoded;
-use hyper::HeaderMap;
-use http::header::HeaderValue;
-use http::header::HeaderName;
-
 
 pub(crate) const URI_ENV: &'static str = "SHIPLIFT_URI";
 pub(crate) const DEFAULT_URI: &'static str = "unix://var/run/docker.sock";
 
 pub(crate) fn build_simple_query<A>(name: &str, value: Option<A>) -> Option<String>
-    where
-        A: AsRef<str>
+where
+    A: AsRef<str>,
 {
     let mut query = None;
 
@@ -33,8 +32,7 @@ pub(crate) trait AsSlice {
     fn as_slice(&self) -> Option<&str>;
 }
 
-impl AsSlice for Option<String>
-{
+impl AsSlice for Option<String> {
     fn as_slice(&self) -> Option<&str> {
         match self {
             Some(ref x) => Some(x),
@@ -44,31 +42,29 @@ impl AsSlice for Option<String>
 }
 
 #[derive(Default)]
-pub(crate) struct RequestArgs<'a,'b> {
+pub(crate) struct RequestArgs<'a, 'b> {
     pub path: &'a str,
     pub query: &'b str,
     pub body: Body,
     pub header: HeaderMap,
 }
 
-impl <'a,'b> RequestArgs<'a,'b>{
-    pub fn set_header<A,B>(&mut self, key: A, value: B)
-        where
-            A: Into<HeaderName>,
-            B: Into<HeaderValue>,
+impl<'a, 'b> RequestArgs<'a, 'b> {
+    pub fn set_header<A, B>(&mut self, key: A, value: B)
+    where
+        A: Into<HeaderName>,
+        B: Into<HeaderValue>,
     {
         self.header.insert(key.into(), value.into());
     }
 }
 
-pub(crate) trait IntoRequestArgs<'a,'b>
-{
-    fn into_request_args(self) -> RequestArgs<'a,'b>;
+pub(crate) trait IntoRequestArgs<'a, 'b> {
+    fn into_request_args(self) -> RequestArgs<'a, 'b>;
 }
 
-impl <'a,'b> IntoRequestArgs<'a,'b> for &'a str
-{
-    fn into_request_args(self) -> RequestArgs<'a,'b> {
+impl<'a, 'b> IntoRequestArgs<'a, 'b> for &'a str {
+    fn into_request_args(self) -> RequestArgs<'a, 'b> {
         let mut args = RequestArgs::default();
         args.path = self;
 
@@ -76,9 +72,8 @@ impl <'a,'b> IntoRequestArgs<'a,'b> for &'a str
     }
 }
 
-impl <'a,'b> IntoRequestArgs<'a,'b> for (&'a str, Option<&'b str>)
-{
-    fn into_request_args(self) -> RequestArgs<'a,'b> {
+impl<'a, 'b> IntoRequestArgs<'a, 'b> for (&'a str, Option<&'b str>) {
+    fn into_request_args(self) -> RequestArgs<'a, 'b> {
         let mut args = RequestArgs::default();
 
         args.path = self.0;
@@ -88,9 +83,8 @@ impl <'a,'b> IntoRequestArgs<'a,'b> for (&'a str, Option<&'b str>)
     }
 }
 
-impl <'a,'b> IntoRequestArgs<'a,'b> for (&'a str, Option<Body>)
-{
-    fn into_request_args(self) -> RequestArgs<'a,'b> {
+impl<'a, 'b> IntoRequestArgs<'a, 'b> for (&'a str, Option<Body>) {
+    fn into_request_args(self) -> RequestArgs<'a, 'b> {
         let mut args = RequestArgs::default();
         args.path = self.0;
         args.body = self.1.unwrap_or_default();
@@ -99,9 +93,8 @@ impl <'a,'b> IntoRequestArgs<'a,'b> for (&'a str, Option<Body>)
     }
 }
 
-impl <'a,'b> IntoRequestArgs<'a,'b> for (&'a str, Option<&'b str>, Option<Body>)
-{
-    fn into_request_args(self) -> RequestArgs<'a,'b> {
+impl<'a, 'b> IntoRequestArgs<'a, 'b> for (&'a str, Option<&'b str>, Option<Body>) {
+    fn into_request_args(self) -> RequestArgs<'a, 'b> {
         let mut args = RequestArgs::default();
 
         args.path = self.0;

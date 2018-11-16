@@ -2,7 +2,6 @@
 
 use hyper::StatusCode;
 
-
 error_chain! {
     types {
         Error, ErrorKind, ResultExt, Result;

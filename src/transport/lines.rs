@@ -7,21 +7,21 @@
 use std::mem::replace;
 use std::string::FromUtf8Error;
 
+use futures::stream::Fuse;
 use futures::{Async, Poll, Stream};
-use futures::stream::{Fuse};
 
 use std::iter::Iterator;
 
 pub(crate) struct Lines<S: Stream> {
     buffered: Option<Vec<u8>>,
-    stream: Fuse<S>
+    stream: Fuse<S>,
 }
 
 impl<S: Stream> Lines<S> {
     pub fn new(stream: S) -> Lines<S> {
         Lines {
             buffered: None,
-            stream: stream.fuse()
+            stream: stream.fuse(),
         }
     }
 
@@ -44,7 +44,10 @@ impl<S: Stream> Lines<S> {
 }
 
 impl<S> Stream for Lines<S>
-    where S: Stream, S::Item: AsRef<[u8]>, S::Error: From<FromUtf8Error>
+where
+    S: Stream,
+    S::Item: AsRef<[u8]>,
+    S::Error: From<FromUtf8Error>,
 {
     type Item = String;
     type Error = S::Error;
@@ -52,12 +55,10 @@ impl<S> Stream for Lines<S>
     fn poll(&mut self) -> Poll<Option<String>, S::Error> {
         match self.stream.poll()? {
             Async::NotReady => Ok(Async::NotReady),
-            Async::Ready(None) => {
-                match self.process(true) {
-                    Some(Ok(line)) => Ok(Async::Ready(Some(line))),
-                    Some(Err(err)) => Err(err.into()),
-                    None => Ok(Async::Ready(None))
-                }
+            Async::Ready(None) => match self.process(true) {
+                Some(Ok(line)) => Ok(Async::Ready(Some(line))),
+                Some(Err(err)) => Err(err.into()),
+                None => Ok(Async::Ready(None)),
             },
             Async::Ready(Some(chunk)) => {
                 if let Some(ref mut buffer) = self.buffered {
@@ -68,7 +69,7 @@ impl<S> Stream for Lines<S>
                 match self.process(false) {
                     Some(Ok(line)) => Ok(Async::Ready(Some(line))),
                     Some(Err(err)) => Err(err.into()),
-                    None => Ok(Async::NotReady)
+                    None => Ok(Async::NotReady),
                 }
             }
         }

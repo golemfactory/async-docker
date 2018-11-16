@@ -1,12 +1,12 @@
 use hyper::client::HttpConnector;
-use hyper::Uri;
 use hyper::Client;
+use hyper::Uri;
 
-use errors::Result;
 use communicate::docker::Docker;
 use communicate::docker::DockerApi;
-use transport::interact::Interact;
+use errors::Result;
 use std::sync::Arc;
+use transport::interact::Interact;
 
 pub(super) type TcpDocker = Docker<HttpConnector>;
 

@@ -4,22 +4,22 @@ extern crate hyper_openssl;
 extern crate openssl;
 use self::hyper_openssl::HttpsConnector;
 use self::openssl::ssl::SslConnectorBuilder;
-use self::openssl::x509::X509Builder;
 use self::openssl::ssl::SslMethod;
+use self::openssl::x509::X509Builder;
 
-use hyper::Uri;
-use errors::Result;
-use Error;
-use std::path::Path;
-use std::env;
-use hyper::Client;
+use self::openssl::ssl::SslContextBuilder;
 use communicate::docker::Docker;
-use std::sync::Arc;
+use communicate::docker::DockerApi;
+use errors::Result;
 use hyper::client::HttpConnector;
 use hyper::Body;
+use hyper::Client;
+use hyper::Uri;
+use std::env;
+use std::path::Path;
+use std::sync::Arc;
 use transport::interact::Interact;
-use communicate::docker::DockerApi;
-use self::openssl::ssl::SslContextBuilder;
+use Error;
 
 pub type TcpSSLDocker = Docker<HttpsConnector<HttpConnector>>;
 
@@ -35,7 +35,7 @@ impl Docker<HttpsConnector<HttpConnector>> {
         // https://github.com/hyperium/hyper/blob/master/src/net.rs#L427-L428
         let context = SslContextBuilder::new(SslMethod::tls())
             .expect("Error during ssl connection preparation");
-        let mut connector = SslConnectorBuilder{context}.build();
+        let mut connector = SslConnectorBuilder { context }.build();
 
         connector.set_cipher_list("DEFAULT")?;
         connector.set_certificate_file(&Path::new(cert), X509Builder::new())?;
@@ -54,9 +54,7 @@ impl Docker<HttpsConnector<HttpConnector>> {
 
         let client = Client::builder().build(connector);
 
-
         let docker = Self::new_inner(Arc::new(Interact::new(client, host)));
         Ok(Box::new(docker))
     }
 }
-
