@@ -7,7 +7,6 @@ use Error;
 use Result;
 
 use util::build_simple_query;
-
 use transport::parse::parse_to_lines;
 use transport::parse::parse_to_stream;
 use transport::parse::parse_to_trait;
@@ -22,6 +21,9 @@ use futures::future;
 use http::StatusCode;
 use hyper::Body;
 use hyper::Chunk;
+use models::ContainerConfig;
+use models::ExecConfig;
+use models::IdResponse;
 use representation::rep::Change;
 use representation::rep::Exit;
 use representation::rep::Stats;
@@ -33,6 +35,7 @@ use tarball::tarball;
 use transport::interact::InteractApi;
 use transport::interact::InteractApiExt;
 use transport::tty;
+use models::ContainerTopResponse;
 
 /// Interface for accessing and manipulating a docker container
 pub struct Container {
@@ -61,20 +64,20 @@ impl Container {
     }
 
     /// Inspects the current docker container instance's details
-    pub fn inspect(&self) -> impl Future<Item = ContainerDetails, Error = Error> + Send {
+    pub fn inspect(&self) -> impl Future<Item = ContainerConfig, Error = Error> + Send {
         let path = format!("/containers/{}/json", self.id);
         let args = path.as_str();
 
-        parse_to_trait::<ContainerDetails>(self.interact.get(args))
+        parse_to_trait::<ContainerConfig>(self.interact.get(args))
     }
 
     /// Returns a `top` view of information about the container process
-    pub fn top(&self, psargs: Option<&str>) -> impl Future<Item = Top, Error = Error> + Send {
+    pub fn top(&self, psargs: Option<&str>) -> impl Future<Item = ContainerTopResponse, Error = Error> + Send {
         let path = format!("/containers/{}/top", self.id);
         let query = build_simple_query("ps_args", psargs);
         let args = (path.as_ref(), query.as_slice());
 
-        parse_to_trait::<Top>(self.interact.get(args))
+        parse_to_trait::<ContainerTopResponse>(self.interact.get(args))
     }
 
     /// Returns a stream of logs emitted but the container instance
@@ -207,29 +210,13 @@ impl Container {
 
     pub fn create_exec(
         &self,
-        opts: &ExecContainerOptions,
-    ) -> impl Future<Item = String, Error = Error> + Send {
+        opts: &ExecConfig,
+    ) -> impl Future<Error = Error, Item = IdResponse> + Send {
         let path = format!("/containers/{}/exec", self.id);
-        let body = opts.serialize().map(Body::from);
+        let body = serde_json::ser::to_string(opts).map(|s| Body::from(s)).ok();
         let args = (path.as_str(), body);
 
-        parse_to_trait::<Value>(self.interact.post_json(args)).and_then(|val| {
-            debug!("{:?}", val);
-            match val {
-                Value::Object(obj) => future::result(
-                    obj.get("Id")
-                        .ok_or(Error::from(EK::JsonFieldMissing("Id")))
-                        .and_then(|val| {
-                            val.as_str()
-                                .ok_or(Error::from(EK::JsonTypeError("Id", "String")))
-                        }).map(|a| {
-                            debug!("String: {}", a.to_string());
-                            a.to_string()
-                        }),
-                ),
-                _ => future::err(Error::from(EK::JsonTypeError("<anonymous>", "Object"))),
-            }
-        })
+        parse_to_trait(self.interact.post_json(args))
     }
 
     pub fn start_exec(&self, id: String) -> impl Stream<Item = (u32, Chunk), Error = Error> {
@@ -247,13 +234,10 @@ impl Container {
         tty::decode(body_future)
     }
 
-    pub fn exec(
-        &self,
-        opts: &ExecContainerOptions,
-    ) -> impl Stream<Item = (u32, Chunk), Error = Error> {
+    pub fn exec(&self, opts: &ExecConfig) -> impl Stream<Item = (u32, Chunk), Error = Error> {
         let copy_self = self.clone();
         self.create_exec(opts)
-            .and_then(move |id| Ok(copy_self.start_exec(id)))
+            .and_then(move |res| Ok(copy_self.start_exec(res.id().to_owned())))
             .flatten_stream()
     }
 

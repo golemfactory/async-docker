@@ -68,7 +68,7 @@ impl Docker<UnixConnector> {
         );
         let mut parts = host.into_parts();
         parts.authority =
-            Some(Authority::from_str("v1.37").expect("Constant authority parsing error"));
+            Some(Authority::from_str("v1.40").expect("Constant authority parsing error"));
         parts.scheme = Some(Scheme::from_str("http").expect("Constant scheme parsing error"));
 
         let host = Uri::from_parts(parts)?;

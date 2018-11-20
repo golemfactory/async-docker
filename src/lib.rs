@@ -37,7 +37,7 @@ pub mod communicate;
 pub mod representation;
 
 mod errors;
-mod models;
+pub mod models;
 mod tarball;
 mod transport;
 

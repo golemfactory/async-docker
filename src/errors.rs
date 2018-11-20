@@ -1,6 +1,7 @@
 //! Representations of various client errors
 
 use hyper::StatusCode;
+use models::ErrorResponse;
 
 error_chain! {
     types {
@@ -44,6 +45,16 @@ error_chain! {
                 display("JSON Field '{}' missing", name)
         }
 
+        DockerApi(msg: ErrorResponse, status: StatusCode) {
+            description("Error response from Docker API")
+                display("Docker {} response:\n{:#?}", status.as_str(), msg)
+        }
+
+        DockerApiUnknown(msg: String, status: StatusCode) {
+            description("Error response from Docker API")
+                display("Docker {} response:\n{:#?}", status.as_str(), msg)
+        }
+
         JsonTypeError(fieldname: &'static str, expectedtype: &'static str) {
             description("JSON Field has wrong type")
                 display("JSON Field '{}' has wrong type, expected: {}", fieldname, expectedtype)
@@ -79,5 +90,4 @@ error_chain! {
                 display("Invalid uri ")
         }
     }
-
 }

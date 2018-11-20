@@ -1,13 +1,13 @@
 extern crate async_docker;
-extern crate http;
 extern crate futures;
+extern crate http;
 extern crate tokio;
 
-use std::env;
-use async_docker::{DockerApi, new_docker};
-use futures::{future, Future};
 use async_docker::LogsOptionsBuilder;
+use async_docker::{new_docker, DockerApi};
 use futures::Stream;
+use futures::{future, Future};
+use std::env;
 
 fn main() {
     if env::args().count() < 2 {
@@ -17,7 +17,7 @@ fn main() {
 
     let container = env::args().nth(1).unwrap();
 
-    let work = future::lazy(move ||  {
+    let work = future::lazy(move || {
         let docker: Box<DockerApi> = new_docker(None).unwrap();
 
         let opts = LogsOptionsBuilder::new().stdout(true).build();
@@ -26,7 +26,7 @@ fn main() {
             .container(container.into())
             .logs(&opts)
             .for_each(|a| Ok(println!("{:?}", a)))
-            .map_err(|e|eprintln!("{:?}", e))
+            .map_err(|e| eprintln!("{:?}", e))
     });
 
     tokio::runtime::run(work);

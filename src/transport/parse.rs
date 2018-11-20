@@ -15,13 +15,14 @@ use self::tokio_codec::BytesCodec;
 use self::tokio_codec::FramedWrite;
 use super::lines::Lines;
 use bytes::Bytes;
-use errors::Error;
+use errors::*;
 use futures::future;
 use futures::Sink;
 use futures::Stream;
 use http::uri::PathAndQuery;
 use http::StatusCode;
 use hyper::Chunk;
+use models::ErrorResponse;
 use serde_json::from_str as de_from_str;
 use std::fmt::Debug;
 use std::path::Path;
@@ -62,11 +63,22 @@ where
     T: for<'a> ::serde::Deserialize<'a> + Send + 'static,
 {
     future.and_then(|w| {
-        w.and_then(|response| response.into_body().concat2())
-            .map_err(Error::from)
-            .and_then(|chunk| {
-                de_from_str::<T>(str::from_utf8(chunk.as_ref())?).map_err(Error::from)
-            })
+        w.map_err(Error::from).and_then(|response| {
+            let status = response.status();
+            response
+                .into_body()
+                .concat2()
+                .map_err(Error::from)
+                .and_then(move |chunk| {
+                    let body = str::from_utf8(chunk.as_ref()).map_err(Error::from)?;
+                    de_from_str::<T>(body).map_err(|_| {
+                        match de_from_str::<ErrorResponse>(body) {
+                            Ok(x) => ErrorKind::DockerApi(x, status).into(),
+                            Err(_) => ErrorKind::DockerApiUnknown(body.to_string(), status),
+                        }.into()
+                    })
+                })
+        })
     })
 }
 

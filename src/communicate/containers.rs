@@ -1,11 +1,11 @@
 use build::ContainerListOptions;
-use build::ContainerOptions;
-use communicate::util::build_simple_query;
 use communicate::util::AsSlice;
 use futures::Future;
 use hyper::Body;
+use models::ContainerConfig;
+use models::ContainerCreateResponse;
 use rep::Container as ContainerRep;
-use representation::rep::ContainerCreateInfo;
+use serde_json;
 use std::sync::Arc;
 use transport::interact::InteractApi;
 use transport::interact::InteractApiExt;
@@ -38,15 +38,12 @@ impl Containers {
     /// Returns a builder interface for creating a new container instance
     pub fn create(
         &self,
-        opts: &ContainerOptions,
-    ) -> impl Future<Item = ContainerCreateInfo, Error = Error> {
+        opts: &ContainerConfig,
+    ) -> impl Future<Item = ContainerCreateResponse, Error = Error> {
         let path = "/containers/create";
-        let query = build_simple_query("name", opts.name.clone());
-        let data = opts
-            .serialize()
-            .expect("Error during serialization of ContainerOptions");
-        let body = Some(Body::from(data));
-        let args = (path, query.as_slice(), body);
+
+        let body = serde_json::ser::to_string(opts).map(|s| Body::from(s)).ok();
+        let args = (path, None, body);
 
         parse_to_trait(self.interact.post_json(args))
     }

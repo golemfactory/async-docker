@@ -20,12 +20,12 @@ pub struct ContainerCreateResponse {
     id: String,
     /// Warnings encountered when creating the container
     #[serde(rename = "Warnings")]
-    warnings: Vec<String>,
+    warnings: Option<Vec<String>>,
 }
 
 impl ContainerCreateResponse {
     /// OK response to ContainerCreate operation
-    pub fn new(id: String, warnings: Vec<String>) -> ContainerCreateResponse {
+    pub fn new(id: String, warnings: Option<Vec<String>>) -> ContainerCreateResponse {
         ContainerCreateResponse {
             id: id,
             warnings: warnings,
@@ -45,16 +45,16 @@ impl ContainerCreateResponse {
         &self.id
     }
 
-    pub fn set_warnings(&mut self, warnings: Vec<String>) {
+    pub fn set_warnings(&mut self, warnings: Option<Vec<String>>) {
         self.warnings = warnings;
     }
 
-    pub fn with_warnings(mut self, warnings: Vec<String>) -> ContainerCreateResponse {
+    pub fn with_warnings(mut self, warnings: Option<Vec<String>>) -> ContainerCreateResponse {
         self.warnings = warnings;
         self
     }
 
-    pub fn warnings(&self) -> &Vec<String> {
+    pub fn warnings(&self) -> &Option<Vec<String>> {
         &self.warnings
     }
 }

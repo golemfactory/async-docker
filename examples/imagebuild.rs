@@ -1,9 +1,9 @@
 extern crate async_docker;
-extern crate http;
 extern crate futures;
+extern crate http;
 extern crate tokio;
 
-use async_docker::{DockerApi, new_docker, BuildOptions};
+use async_docker::{new_docker, BuildOptions, DockerApi};
 use futures::{future, Future};
 use std::env;
 
