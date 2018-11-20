@@ -1,17 +1,13 @@
 use errors::ErrorKind as EK;
-use futures::future;
-use futures::Future;
-use futures::Stream;
+use futures::{future, Future, Stream};
 use hyper::Chunk;
-use representation::rep::History;
-use representation::rep::ImageDetails;
-use representation::rep::Status;
+use representation::rep::{History, ImageDetails, Status};
 use serde_json::Value;
-use std::borrow::Cow;
-use std::sync::Arc;
-use transport::interact::InteractApi;
-use transport::interact::InteractApiExt;
-use transport::parse::parse_to_trait;
+use std::{borrow::Cow, sync::Arc};
+use transport::{
+    interact::{InteractApi, InteractApiExt},
+    parse::parse_to_trait,
+};
 use Error;
 use Result;
 
@@ -64,7 +60,8 @@ impl<'b> Image<'b> {
                         obj.get("Deleted")
                             .ok_or_else(|| {
                                 Error::from(EK::JsonFieldMissing("Deleted' or 'Untagged"))
-                            }).and_then(|sha| {
+                            })
+                            .and_then(|sha| {
                                 sha.as_str()
                                     .map(|s| Status::Deleted(s.to_owned()))
                                     .ok_or_else(|| {
@@ -72,7 +69,8 @@ impl<'b> Image<'b> {
                                     })
                             })
                     }
-                }).collect()
+                })
+                .collect()
         }
 
         let args = format!("/images/{}", self.name);

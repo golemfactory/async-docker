@@ -4,18 +4,16 @@ extern crate tokio_uds;
 extern crate unix_socket;
 use self::tokio_uds::UnixStream;
 
-use http::uri::Authority;
-use http::uri::Scheme;
-use hyper::client::connect::Connect;
-use hyper::client::connect::Connected;
-use hyper::client::connect::Destination;
-use hyper::Client;
-use hyper::Uri;
-use std::path::PathBuf;
-use std::str::FromStr;
-use tokio::io;
-use tokio::prelude::future;
-use tokio::prelude::Future;
+use http::uri::{Authority, Scheme};
+use hyper::{
+    client::connect::{Connect, Connected, Destination},
+    Client, Uri,
+};
+use std::{path::PathBuf, str::FromStr};
+use tokio::{
+    io,
+    prelude::{future, Future},
+};
 
 use communicate::docker::DockerApi;
 use docker::Docker;

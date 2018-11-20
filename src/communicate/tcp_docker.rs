@@ -1,9 +1,6 @@
-use hyper::client::HttpConnector;
-use hyper::Client;
-use hyper::Uri;
+use hyper::{client::HttpConnector, Client, Uri};
 
-use communicate::docker::Docker;
-use communicate::docker::DockerApi;
+use communicate::docker::{Docker, DockerApi};
 use errors::Result;
 use std::sync::Arc;
 use transport::interact::Interact;

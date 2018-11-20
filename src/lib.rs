@@ -41,8 +41,7 @@ pub mod models;
 mod tarball;
 mod transport;
 
-pub use errors::Error;
-pub use errors::Result;
+pub use errors::{Error, Result};
 
 pub use build::*;
 pub use communicate::*;

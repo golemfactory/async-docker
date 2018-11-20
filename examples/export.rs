@@ -4,11 +4,8 @@ extern crate http;
 extern crate tokio;
 
 use async_docker::{new_docker, DockerApi};
-use futures::Stream;
-use futures::{future, Future};
-use std::env;
-use std::fs::OpenOptions;
-use std::io::copy;
+use futures::{future, Future, Stream};
+use std::{env, fs::OpenOptions, io::copy};
 
 fn main() {
     if env::args().count() < 2 {
@@ -35,7 +32,8 @@ fn main() {
                 let strin = chunk.into_bytes();
                 copy(&mut strin.as_ref(), &mut export).unwrap();
                 Ok(println!("Success"))
-            }).map_err(|a| eprintln!("{:?}", a))
+            })
+            .map_err(|a| eprintln!("{:?}", a))
     });
 
     tokio::runtime::run(work);

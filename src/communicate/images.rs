@@ -1,22 +1,16 @@
-use build::BuildOptions;
-use build::ImageListOptions;
-use build::PullOptions;
-use communicate::util::build_simple_query;
-use communicate::util::AsSlice;
-use futures::future;
-use futures::Future;
-use futures::Stream;
+use build::{BuildOptions, ImageListOptions, PullOptions};
+use communicate::util::{build_simple_query, AsSlice};
+use futures::{future, Future, Stream};
 use hyper::Body;
 use rep::Image as ImageRep;
-use representation::rep::SearchResult;
-use representation::rep::Top;
+use representation::rep::{SearchResult, Top};
 use serde_json::Value;
 use std::sync::Arc;
 use tarball::tarball;
-use transport::interact::InteractApi;
-use transport::interact::InteractApiExt;
-use transport::parse::parse_to_lines;
-use transport::parse::parse_to_trait;
+use transport::{
+    interact::{InteractApi, InteractApiExt},
+    parse::{parse_to_lines, parse_to_trait},
+};
 use url::form_urlencoded;
 use Error;
 

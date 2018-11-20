@@ -2,22 +2,19 @@
 
 extern crate hyper_openssl;
 extern crate openssl;
-use self::hyper_openssl::HttpsConnector;
-use self::openssl::ssl::SslConnectorBuilder;
-use self::openssl::ssl::SslMethod;
-use self::openssl::x509::X509Builder;
+use self::{
+    hyper_openssl::HttpsConnector,
+    openssl::{
+        ssl::{SslConnectorBuilder, SslMethod},
+        x509::X509Builder,
+    },
+};
 
 use self::openssl::ssl::SslContextBuilder;
-use communicate::docker::Docker;
-use communicate::docker::DockerApi;
+use communicate::docker::{Docker, DockerApi};
 use errors::Result;
-use hyper::client::HttpConnector;
-use hyper::Body;
-use hyper::Client;
-use hyper::Uri;
-use std::env;
-use std::path::Path;
-use std::sync::Arc;
+use hyper::{client::HttpConnector, Body, Client, Uri};
+use std::{env, path::Path, sync::Arc};
 use transport::interact::Interact;
 use Error;
 

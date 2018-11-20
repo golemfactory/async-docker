@@ -5,10 +5,8 @@ pub use errors::Error;
 pub use errors::Result;
 pub use std::marker::Sized;
 
-use http::header::HeaderName;
-use http::header::HeaderValue;
-use hyper::Body;
-use hyper::HeaderMap;
+use http::header::{HeaderName, HeaderValue};
+use hyper::{Body, HeaderMap};
 use std::str;
 use url::form_urlencoded;
 

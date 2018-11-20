@@ -4,11 +4,9 @@
 // https://github.com/hyperium/hyper/issues/1335
 // https://play.rust-lang.org/?gist=971e438cabd6f91efb76b7e45b15edf3&version=stable
 
-use std::mem::replace;
-use std::string::FromUtf8Error;
+use std::{mem::replace, string::FromUtf8Error};
 
-use futures::stream::Fuse;
-use futures::{Async, Poll, Stream};
+use futures::{stream::Fuse, Async, Poll, Stream};
 
 use std::iter::Iterator;
 

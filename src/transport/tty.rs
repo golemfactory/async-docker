@@ -2,12 +2,9 @@ extern crate byteorder;
 
 use self::byteorder::{BigEndian, ReadBytesExt};
 use errors::ErrorKind;
-use futures::Async;
-use futures::Poll;
-use futures::Stream;
+use futures::{Async, Poll, Stream};
 use hyper::Chunk;
-use std::collections::VecDeque;
-use std::io::Cursor;
+use std::{collections::VecDeque, io::Cursor};
 use Error;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]

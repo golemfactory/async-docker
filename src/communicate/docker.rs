@@ -1,13 +1,10 @@
 use futures::Future;
-use hyper::client::connect::Connect;
-use hyper::rt::Stream;
+use hyper::{client::connect::Connect, rt::Stream};
 
 use errors::{Error, ErrorKind, Result};
 
 use communicate::util::AsSlice;
-use transport::parse_to_stream;
-use transport::parse_to_trait;
-use transport::status_code;
+use transport::{parse_to_stream, parse_to_trait, status_code};
 
 use std::env;
 
@@ -20,19 +17,12 @@ use super::ssl_tcp_docker::TcpSSLDocker;
 use super::tcp_docker::TcpDocker;
 #[cfg(target_os = "linux")]
 use super::unix_docker::UnixDocker;
-use communicate::containers::Containers;
-use communicate::image::Image;
-use communicate::networks::Networks;
-use communicate::Container;
-use communicate::Images;
-use communicate::Network;
-use hyper::StatusCode;
-use hyper::Uri;
-use std::borrow::Cow;
-use std::marker::PhantomData;
-use std::sync::Arc;
-use transport::interact::InteractApi;
-use transport::interact::InteractApiExt;
+use communicate::{
+    containers::Containers, image::Image, networks::Networks, Container, Images, Network,
+};
+use hyper::{StatusCode, Uri};
+use std::{borrow::Cow, marker::PhantomData, sync::Arc};
+use transport::interact::{InteractApi, InteractApiExt};
 
 /// Entry point interface for communicating with docker daemon
 pub trait DockerApi {

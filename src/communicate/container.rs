@@ -1,41 +1,25 @@
 use build::LogsOptions;
-use futures::Future;
-use futures::Stream;
-use representation::rep::ContainerDetails;
+use futures::{Future, Stream};
 use std::borrow::Cow;
 use Error;
 use Result;
 
+use transport::parse::{parse_to_lines, parse_to_stream, parse_to_trait, status_code};
 use util::build_simple_query;
-use transport::parse::parse_to_lines;
-use transport::parse::parse_to_stream;
-use transport::parse::parse_to_trait;
-use transport::parse::status_code;
 
-use build::ContainerArchivePutOptions;
-use build::ExecContainerOptions;
-use build::RmContainerOptions;
+use build::{ContainerArchivePutOptions, RmContainerOptions};
 use communicate::util::AsSlice;
-use errors::ErrorKind as EK;
 use futures::future;
 use http::StatusCode;
-use hyper::Body;
-use hyper::Chunk;
-use models::ContainerConfig;
-use models::ExecConfig;
-use models::IdResponse;
-use representation::rep::Change;
-use representation::rep::Exit;
-use representation::rep::Stats;
-use representation::rep::Top;
-use serde_json::Value;
-use std::sync::Arc;
-use std::time::Duration;
+use hyper::{Body, Chunk};
+use models::{ContainerConfig, ContainerTopResponse, ExecConfig, IdResponse};
+use representation::rep::{Change, Exit, Stats};
+use std::{sync::Arc, time::Duration};
 use tarball::tarball;
-use transport::interact::InteractApi;
-use transport::interact::InteractApiExt;
-use transport::tty;
-use models::ContainerTopResponse;
+use transport::{
+    interact::{InteractApi, InteractApiExt},
+    tty,
+};
 
 /// Interface for accessing and manipulating a docker container
 pub struct Container {
@@ -72,7 +56,10 @@ impl Container {
     }
 
     /// Returns a `top` view of information about the container process
-    pub fn top(&self, psargs: Option<&str>) -> impl Future<Item = ContainerTopResponse, Error = Error> + Send {
+    pub fn top(
+        &self,
+        psargs: Option<&str>,
+    ) -> impl Future<Item = ContainerTopResponse, Error = Error> + Send {
         let path = format!("/containers/{}/top", self.id);
         let query = build_simple_query("ps_args", psargs);
         let args = (path.as_ref(), query.as_slice());

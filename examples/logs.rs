@@ -3,10 +3,8 @@ extern crate futures;
 extern crate http;
 extern crate tokio;
 
-use async_docker::LogsOptionsBuilder;
-use async_docker::{new_docker, DockerApi};
-use futures::Stream;
-use futures::{future, Future};
+use async_docker::{new_docker, DockerApi, LogsOptionsBuilder};
+use futures::{future, Future, Stream};
 use std::env;
 
 fn main() {

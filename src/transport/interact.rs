@@ -1,17 +1,9 @@
-use communicate::util::IntoRequestArgs;
-use communicate::util::RequestArgs;
-use futures::future;
-use futures::Future;
-use http::header::HeaderValue;
-use http::header::CONNECTION;
-use http::header::CONTENT_TYPE;
-use hyper::client::connect::Connect;
-use hyper::Client;
-use hyper::Method;
-use hyper::Uri;
+use communicate::util::{IntoRequestArgs, RequestArgs};
+use futures::{future, Future};
+use http::header::{HeaderValue, CONNECTION, CONTENT_TYPE};
+use hyper::{client::connect::Connect, Client, Method, Uri};
 use std::sync::Arc;
-use transport::parse::compose_uri;
-use transport::parse::ResponseFutureWrapper;
+use transport::parse::{compose_uri, ResponseFutureWrapper};
 use Error;
 
 pub(crate) trait InteractApi: Send + Sync {
@@ -132,7 +124,8 @@ where
             future::result(uri_result)
                 .and_then(move |uri| {
                     ::transport::build_request(method, uri, b).map_err(Error::from)
-                }).map_err(Error::from)
+                })
+                .map_err(Error::from)
                 // Inserting header elements one-by-one
                 .and_then(move |mut request| {
                     for h in h {
@@ -140,7 +133,8 @@ where
                         request.headers_mut().insert(key, h.1);
                     }
                     Ok(request)
-                }).and_then(move |request| Ok(client.request(request))),
+                })
+                .and_then(move |request| Ok(client.request(request))),
         )
     }
 }

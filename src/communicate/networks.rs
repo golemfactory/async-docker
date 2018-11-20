@@ -1,14 +1,13 @@
-use build::NetworkCreateOptions;
-use build::NetworkListOptions;
+use build::{NetworkCreateOptions, NetworkListOptions};
 use communicate::util::AsSlice;
 use futures::Future;
 use hyper::Body;
-use representation::rep::NetworkCreateInfo;
-use representation::rep::NetworkDetails;
+use representation::rep::{NetworkCreateInfo, NetworkDetails};
 use std::sync::Arc;
-use transport::interact::InteractApi;
-use transport::interact::InteractApiExt;
-use transport::parse::parse_to_trait;
+use transport::{
+    interact::{InteractApi, InteractApiExt},
+    parse::parse_to_trait,
+};
 use Error;
 
 /// Interface for docker networks

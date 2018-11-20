@@ -3,12 +3,11 @@ use communicate::util::AsSlice;
 use futures::Future;
 use http::StatusCode;
 use representation::rep::NetworkDetails;
-use std::borrow::Cow;
-use std::sync::Arc;
-use transport::interact::InteractApi;
-use transport::interact::InteractApiExt;
-use transport::parse::parse_to_trait;
-use transport::parse::status_code;
+use std::{borrow::Cow, sync::Arc};
+use transport::{
+    interact::{InteractApi, InteractApiExt},
+    parse::{parse_to_trait, status_code},
+};
 use Error;
 
 /// Interface for accessing and manipulating a docker network

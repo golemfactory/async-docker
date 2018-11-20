@@ -3,31 +3,23 @@ extern crate tokio_codec;
 
 use Result;
 
-use hyper::client::ResponseFuture;
-use hyper::rt::Future;
-use hyper::Body;
-use hyper::Method;
-use hyper::Request;
-use hyper::Uri;
+use hyper::{client::ResponseFuture, rt::Future, Body, Method, Request, Uri};
 use std::convert::Into;
 
-use self::tokio_codec::BytesCodec;
-use self::tokio_codec::FramedWrite;
+use self::tokio_codec::{BytesCodec, FramedWrite};
 use super::lines::Lines;
 use bytes::Bytes;
 use errors::*;
-use futures::future;
-use futures::Sink;
-use futures::Stream;
-use http::uri::PathAndQuery;
-use http::StatusCode;
+use futures::{future, Sink, Stream};
+use http::{uri::PathAndQuery, StatusCode};
 use hyper::Chunk;
 use models::ErrorResponse;
 use serde_json::from_str as de_from_str;
-use std::fmt::Debug;
-use std::path::Path;
-use std::str;
-use std::str::FromStr;
+use std::{
+    fmt::Debug,
+    path::Path,
+    str::{self, FromStr},
+};
 use tokio::fs::File;
 
 pub type ResponseFutureWrapper = Box<Future<Item = ResponseFuture, Error = Error> + Send>;
@@ -53,7 +45,8 @@ pub(crate) fn status_code(
         .and_then(|response| {
             debug!("GET");
             future::ok(response.status())
-        }).map_err(Error::from)
+        })
+        .map_err(Error::from)
 }
 
 pub(crate) fn parse_to_trait<T>(
@@ -75,7 +68,8 @@ where
                         match de_from_str::<ErrorResponse>(body) {
                             Ok(x) => ErrorKind::DockerApi(x, status).into(),
                             Err(_) => ErrorKind::DockerApiUnknown(body.to_string(), status),
-                        }.into()
+                        }
+                        .into()
                     })
                 })
         })
@@ -97,8 +91,10 @@ pub(crate) fn parse_to_lines(
                     let lines = Lines::new(body);
 
                     Ok(lines)
-                }).map_err(Error::from)
-        }).flatten_stream()
+                })
+                .map_err(Error::from)
+        })
+        .flatten_stream()
 }
 
 pub(crate) fn parse_to_stream<T>(
@@ -125,8 +121,10 @@ where
                     });
 
                     Ok(mapped)
-                }).map_err(Error::from)
-        }).flatten_stream()
+                })
+                .map_err(Error::from)
+        })
+        .flatten_stream()
 }
 
 #[allow(dead_code)]
@@ -141,7 +139,8 @@ pub(crate) fn parse_to_file(
 
                 Ok(body)
             })
-        }).flatten_stream();
+        })
+        .flatten_stream();
 
     let file = File::create(Path::new(filepath));
 

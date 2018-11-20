@@ -2,21 +2,20 @@
 extern crate serde;
 extern crate serde_json;
 
-use self::serde::Serialize;
-use self::serde_json::map::Map;
-use self::serde_json::to_string as ser_to_string;
-use self::serde_json::to_value as de_to_value;
-use self::serde_json::Number;
-use self::serde_json::Value;
+use self::{
+    serde::Serialize,
+    serde_json::{map::Map, to_string as ser_to_string, to_value as de_to_value, Number, Value},
+};
 
-use std::cmp::Eq;
-use std::collections::{BTreeMap, HashMap};
-use std::hash::Hash;
-use std::iter::Peekable;
+use std::{
+    cmp::Eq,
+    collections::{BTreeMap, HashMap},
+    hash::Hash,
+    iter::Peekable,
+};
 use url::form_urlencoded;
 
-use errors::Error;
-use errors::Result;
+use errors::{Error, Result};
 
 #[derive(Default)]
 pub struct PullOptions {
