@@ -19,11 +19,11 @@ use communicate::{
     containers::Containers, image::Image, networks::Networks, Container, Images, Network,
 };
 use hyper::{StatusCode, Uri};
+use models::SystemEventsResponse;
+use models::SystemInfo;
+use models::SystemVersionResponse;
 use std::{borrow::Cow, marker::PhantomData, sync::Arc};
 use transport::interact::{InteractApi, InteractApiExt};
-use models::SystemVersionResponse;
-use models::SystemInfo;
-use models::SystemEventsResponse;
 
 /// Entry point interface for communicating with docker daemon
 pub trait DockerApi {
@@ -88,7 +88,9 @@ where
     fn version(&self) -> Box<Future<Item = SystemVersionResponse, Error = Error> + Send> {
         let arg = "/version";
 
-        Box::new(parse_to_trait::<SystemVersionResponse>(self.interact.get(arg)))
+        Box::new(parse_to_trait::<SystemVersionResponse>(
+            self.interact.get(arg),
+        ))
     }
 
     fn info(&self) -> Box<Future<Item = SystemInfo, Error = Error> + Send> {
@@ -110,7 +112,9 @@ where
         let query = opts.serialize();
         let arg = ("/events", query.as_slice());
 
-        Box::new(parse_to_stream::<SystemEventsResponse>(self.interact.get(arg)))
+        Box::new(parse_to_stream::<SystemEventsResponse>(
+            self.interact.get(arg),
+        ))
     }
 
     fn container(&self, id: Cow<'static, str>) -> Container {
