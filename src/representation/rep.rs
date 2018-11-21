@@ -3,43 +3,6 @@
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SearchResult {
-    pub description: String,
-    pub is_official: bool,
-    pub is_trusted: bool,
-    pub name: String,
-    pub star_count: u64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct Image {
-    pub Created: u64,
-    pub Id: String,
-    pub ParentId: String,
-    pub Labels: Option<HashMap<String, String>>,
-    pub RepoTags: Vec<String>,
-    pub RepoDigests: Option<Vec<String>>,
-    pub VirtualSize: u64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct ImageDetails {
-    pub Architecture: String,
-    pub Author: String,
-    pub Comment: String,
-    pub Config: Config,
-    pub Created: String,
-    pub DockerVersion: String,
-    pub Id: String,
-    pub Os: String,
-    pub Parent: String,
-    pub Size: u64,
-    pub VirtualSize: u64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct Container {
     pub Created: u64,
@@ -52,125 +15,6 @@ pub struct Container {
     pub Status: String,
     pub SizeRw: Option<u64>,
     pub SizeRootFs: Option<u64>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct ContainerDetails {
-    pub AppArmorProfile: String,
-    pub Args: Vec<String>,
-    pub Config: Config,
-    pub Created: String,
-    pub Driver: String,
-    // pub ExecIDs: ??
-    pub HostConfig: HostConfig,
-    pub HostnamePath: String,
-    pub HostsPath: String,
-    pub LogPath: String,
-    pub Id: String,
-    pub Image: String,
-    pub MountLabel: String,
-    pub NetworkSettings: NetworkSettings,
-    pub Path: String,
-    pub ProcessLabel: String,
-    pub ResolvConfPath: String,
-    pub RestartCount: u64,
-    pub State: State,
-    pub Mounts: Vec<Mount>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct Mount {
-    pub Source: String,
-    pub Destination: String,
-    pub Mode: String,
-    pub RW: bool,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct State {
-    pub Error: String,
-    pub ExitCode: u64,
-    pub FinishedAt: String,
-    pub OOMKilled: bool,
-    pub Paused: bool,
-    pub Pid: u64,
-    pub Restarting: bool,
-    pub Running: bool,
-    pub StartedAt: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct NetworkSettings {
-    pub Bridge: String,
-    pub Gateway: String,
-    pub IPAddress: String,
-    pub IPPrefixLen: u64,
-    pub MacAddress: String, /*    pub PortMapping: Option<???>,
-                             *   pub Ports: Option<???> */
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct HostConfig {
-    pub CgroupParent: Option<String>,
-    pub ContainerIDFile: String,
-    pub CpuShares: Option<u64>,
-    pub CpusetCpus: Option<String>,
-    pub Memory: Option<u64>,
-    pub MemorySwap: Option<u64>,
-    pub NetworkMode: String,
-    pub PidMode: Option<String>,
-    // pub PortBindings: ???
-    pub Privileged: bool,
-    pub PublishAllPorts: bool,
-    pub ReadonlyRootfs: Option<bool>, /* pub RestartPolicy: ???
-                                       * pub SecurityOpt: Option<???>,
-                                       * pub Ulimits: Option<???>
-                                       * pub VolumesFrom: Option<??/> */
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct Config {
-    pub AttachStderr: bool,
-    pub AttachStdin: bool,
-    pub AttachStdout: bool,
-    pub Cmd: Option<Vec<String>>,
-    pub Domainname: String,
-    pub Entrypoint: Option<Vec<String>>,
-    pub Env: Option<Vec<String>>,
-    // ExposedPorts
-    pub Hostname: String,
-    pub Image: String,
-    pub Labels: HashMap<String, String>,
-    // pub MacAddress: String,
-    pub OnBuild: Option<Vec<String>>,
-    // pub NetworkDisabled: bool,
-    pub OpenStdin: bool,
-    pub StdinOnce: bool,
-    pub Tty: bool,
-    pub User: String,
-    pub WorkingDir: String,
-}
-
-impl Config {
-    pub fn env(&self) -> HashMap<String, String> {
-        let mut map = HashMap::new();
-        match self.Env {
-            Some(ref vars) => {
-                for e in vars {
-                    let pair: Vec<&str> = e.split("=").collect();
-                    map.insert(pair[0].to_owned(), pair[1].to_owned());
-                }
-            }
-            _ => (),
-        };
-        map
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -201,39 +45,6 @@ pub struct Network {
     pub rx_packets: u64,
     pub tx_errors: u64,
     pub tx_bytes: u64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct IPAM {
-    pub Driver: String,
-    pub Config: Vec<HashMap<String, String>>,
-    pub Options: Option<HashMap<String, String>>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct NetworkDetails {
-    pub Name: String,
-    pub Id: String,
-    pub Scope: String,
-    pub Driver: String,
-    pub EnableIPv6: bool,
-    pub IPAM: IPAM,
-    pub Internal: bool,
-    pub Attachable: bool,
-    pub Containers: HashMap<String, NetworkContainerDetails>,
-    pub Options: Option<HashMap<String, String>>,
-    pub Labels: Option<HashMap<String, String>>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct NetworkContainerDetails {
-    pub EndpointID: String,
-    pub MacAddress: String,
-    pub IPv4Address: String,
-    pub IPv6Address: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -325,73 +136,6 @@ pub struct BlkioStat {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct Change {
-    pub Kind: u64,
-    pub Path: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct Top {
-    pub Titles: Vec<String>,
-    pub Processes: Vec<Vec<String>>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct Version {
-    pub ApiVersion: String,
-    pub Version: String,
-    pub GitCommit: String,
-    pub GoVersion: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct Info {
-    pub Containers: u64,
-    pub Images: u64,
-    pub Driver: String,
-    pub DockerRootDir: String,
-    pub DriverStatus: Vec<Vec<String>>,
-    pub ID: String,
-    pub KernelVersion: String,
-    // pub Labels: Option<???>,
-    pub MemTotal: u64,
-    pub MemoryLimit: bool,
-    pub NCPU: u64,
-    pub NEventsListener: u64,
-    pub NGoroutines: u64,
-    pub Name: String,
-    pub OperatingSystem: String,
-    // pub RegistryConfig:???
-    pub SwapLimit: bool,
-    pub SystemTime: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct ContainerCreateInfo {
-    pub Id: String,
-    pub Warnings: Option<Vec<String>>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct History {
-    pub Id: String,
-    pub Created: u64,
-    pub CreatedBy: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct Exit {
-    pub StatusCode: u64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
 pub struct Event {
     pub status: Option<String>,
     pub id: Option<String>,
@@ -404,11 +148,4 @@ pub struct Event {
 pub enum Status {
     Untagged(String),
     Deleted(String),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct IOString {
-    #[serde(default)]
-    pub content: String,
 }

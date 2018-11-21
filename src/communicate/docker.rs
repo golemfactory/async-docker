@@ -10,8 +10,6 @@ use std::env;
 
 use build::EventsOptions;
 
-use representation::rep::{Event, Info, Version};
-
 #[cfg(feature = "ssl")]
 use super::ssl_tcp_docker::TcpSSLDocker;
 use super::tcp_docker::TcpDocker;
@@ -23,14 +21,17 @@ use communicate::{
 use hyper::{StatusCode, Uri};
 use std::{borrow::Cow, marker::PhantomData, sync::Arc};
 use transport::interact::{InteractApi, InteractApiExt};
+use models::SystemVersionResponse;
+use models::SystemInfo;
+use models::SystemEventsResponse;
 
 /// Entry point interface for communicating with docker daemon
 pub trait DockerApi {
     /// Returns version information associated with the docker daemon
-    fn version(&self) -> Box<Future<Item = Version, Error = Error> + Send>;
+    fn version(&self) -> Box<Future<Item = SystemVersionResponse, Error = Error> + Send>;
 
     /// Returns information associated with the docker daemon
-    fn info(&self) -> Box<Future<Item = Info, Error = Error> + Send>;
+    fn info(&self) -> Box<Future<Item = SystemInfo, Error = Error> + Send>;
 
     /// Returns a simple ping response indicating the docker daemon is accessible
     fn ping(&self) -> Box<Future<Item = StatusCode, Error = Error> + Send>;
@@ -39,7 +40,7 @@ pub trait DockerApi {
     fn events(
         &self,
         opts: &EventsOptions,
-    ) -> Box<Stream<Item = Result<Event>, Error = Error> + Send>;
+    ) -> Box<Stream<Item = Result<SystemEventsResponse>, Error = Error> + Send>;
 
     /// Exports an interface for interacting with docker container
     fn container(&self, id: Cow<'static, str>) -> Container;
@@ -84,16 +85,16 @@ impl<C> DockerApi for Docker<C>
 where
     C: Connect + 'static,
 {
-    fn version(&self) -> Box<Future<Item = Version, Error = Error> + Send> {
+    fn version(&self) -> Box<Future<Item = SystemVersionResponse, Error = Error> + Send> {
         let arg = "/version";
 
-        Box::new(parse_to_trait::<Version>(self.interact.get(arg)))
+        Box::new(parse_to_trait::<SystemVersionResponse>(self.interact.get(arg)))
     }
 
-    fn info(&self) -> Box<Future<Item = Info, Error = Error> + Send> {
+    fn info(&self) -> Box<Future<Item = SystemInfo, Error = Error> + Send> {
         let arg = "/info";
 
-        Box::new(parse_to_trait::<Info>(self.interact.get(arg)))
+        Box::new(parse_to_trait::<SystemInfo>(self.interact.get(arg)))
     }
 
     fn ping(&self) -> Box<Future<Item = StatusCode, Error = Error> + Send> {
@@ -105,11 +106,11 @@ where
     fn events(
         &self,
         opts: &EventsOptions,
-    ) -> Box<Stream<Item = Result<Event>, Error = Error> + Send> {
+    ) -> Box<Stream<Item = Result<SystemEventsResponse>, Error = Error> + Send> {
         let query = opts.serialize();
         let arg = ("/events", query.as_slice());
 
-        Box::new(parse_to_stream::<Event>(self.interact.get(arg)))
+        Box::new(parse_to_stream::<SystemEventsResponse>(self.interact.get(arg)))
     }
 
     fn container(&self, id: Cow<'static, str>) -> Container {
