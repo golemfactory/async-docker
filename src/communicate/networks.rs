@@ -1,8 +1,10 @@
-use build::{NetworkCreateOptions, NetworkListOptions};
+use build::NetworkListOptions;
 use communicate::util::AsSlice;
 use futures::Future;
 use hyper::Body;
-use representation::rep::{NetworkCreateInfo, NetworkDetails};
+use models::Network;
+use models::NetworkConfig;
+use models::NetworkCreateResponse;
 use std::sync::Arc;
 use transport::{
     interact::{InteractApi, InteractApiExt},
@@ -25,23 +27,22 @@ impl Networks {
     pub fn list(
         &self,
         opts: &NetworkListOptions,
-    ) -> impl Future<Item = Vec<NetworkDetails>, Error = Error> {
+    ) -> impl Future<Item = Vec<Network>, Error = Error> {
         let path = "/networks";
         let query = opts.serialize();
         let args = (path, query.as_slice());
 
-        parse_to_trait::<Vec<NetworkDetails>>(self.interact.get(args))
+        parse_to_trait::<Vec<Network>>(self.interact.get(args))
     }
 
     pub fn create(
         &self,
-        opts: &NetworkCreateOptions,
-    ) -> impl Future<Item = NetworkCreateInfo, Error = Error> {
+        opts: &NetworkConfig,
+    ) -> impl Future<Item = NetworkCreateResponse, Error = Error> {
         let path = "/networks/create";
-        let bytes = opts.serialize().expect("Error during serialization");
-        let body = Some(Body::from(bytes));
+        let body = serde_json::ser::to_string(opts).map(|s| Body::from(s)).ok();
         let args = (path, body);
 
-        parse_to_trait::<NetworkCreateInfo>(self.interact.post_json(args))
+        parse_to_trait::<NetworkCreateResponse>(self.interact.post_json(args))
     }
 }

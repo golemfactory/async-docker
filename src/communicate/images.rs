@@ -2,8 +2,9 @@ use build::{BuildOptions, ImageListOptions, PullOptions};
 use communicate::util::{build_simple_query, AsSlice};
 use futures::{future, Future, Stream};
 use hyper::Body;
-use rep::Image as ImageRep;
-use representation::rep::{SearchResult, Top};
+use models::ContainerTopResponse;
+use models::Image;
+use models::ImageSearchResponseItem;
 use serde_json::Value;
 use std::sync::Arc;
 use tarball::tarball;
@@ -26,7 +27,10 @@ impl Images {
     }
 
     /// Builds a new image build by reading a Dockerfile in a target directory
-    pub fn build(&self, opts: &BuildOptions) -> impl Future<Item = Vec<Top>, Error = Error> + Send {
+    pub fn build(
+        &self,
+        opts: &BuildOptions,
+    ) -> impl Future<Item = Vec<ContainerTopResponse>, Error = Error> + Send {
         let mut bytes = vec![];
         let interact = self.interact.clone();
 
@@ -37,7 +41,7 @@ impl Images {
             let body = Some(Body::from(bytes));
 
             let args = (path, query.as_slice(), body);
-            parse_to_trait::<Vec<Top>>(interact.get(args))
+            parse_to_trait::<Vec<ContainerTopResponse>>(interact.get(args))
         })
     }
 
@@ -45,26 +49,26 @@ impl Images {
     pub fn list(
         &self,
         opts: &ImageListOptions,
-    ) -> impl Future<Item = Vec<ImageRep>, Error = Error> + Send {
+    ) -> impl Future<Item = Vec<Image>, Error = Error> + Send {
         let path = "/images/json";
         let query = opts.serialize();
 
         let args = (path, query.as_slice());
 
-        parse_to_trait::<Vec<ImageRep>>(self.interact.get(args))
+        parse_to_trait::<Vec<Image>>(self.interact.get(args))
     }
 
     /// Search for docker images by term
     pub fn search(
         &self,
         term: &str,
-    ) -> impl Future<Item = Vec<SearchResult>, Error = Error> + Send {
+    ) -> impl Future<Item = Vec<ImageSearchResponseItem>, Error = Error> + Send {
         let path = "/images/search";
         let query = build_simple_query("term", Some(term));
 
         let args = (path, query.as_slice());
 
-        parse_to_trait::<Vec<SearchResult>>(self.interact.get(args))
+        parse_to_trait::<Vec<ImageSearchResponseItem>>(self.interact.get(args))
     }
 
     /// Pull and create a new docker images from an existing image
@@ -91,8 +95,4 @@ impl Images {
 
         parse_to_lines(self.interact.get(args))
     }
-
-    // pub fn import(self, tarball: Read>) -> Result<()> {
-    //  self.interact.post
-    // }
 }

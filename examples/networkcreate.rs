@@ -3,10 +3,8 @@ extern crate futures;
 extern crate http;
 extern crate tokio;
 
-use async_docker::{
-    communicate::{new_docker, DockerApi},
-    NetworkCreateOptions,
-};
+use async_docker::communicate::{new_docker, DockerApi};
+use async_docker::models::NetworkConfig;
 use futures::{future, Future};
 use std::env;
 
@@ -20,7 +18,7 @@ fn main() {
 
     let work = future::lazy(move || {
         let docker: Box<DockerApi> = new_docker(None).unwrap();
-        let opts = &NetworkCreateOptions::builder(network_name.as_ref()).build();
+        let opts = &NetworkConfig::new(network_name);
 
         docker
             .networks()

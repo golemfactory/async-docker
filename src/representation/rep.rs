@@ -237,13 +237,6 @@ pub struct NetworkContainerDetails {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct NetworkCreateInfo {
-    pub Id: String,
-    pub Warning: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MemoryStats {
     pub max_usage: u64,
     pub usage: u64,

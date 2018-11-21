@@ -1,7 +1,9 @@
 use errors::ErrorKind as EK;
 use futures::{future, Future, Stream};
 use hyper::Chunk;
-use representation::rep::{History, ImageDetails, Status};
+use models;
+use models::HistoryResponseItem;
+use representation::rep::Status;
 use serde_json::Value;
 use std::{borrow::Cow, sync::Arc};
 use transport::{
@@ -30,17 +32,17 @@ impl<'b> Image<'b> {
     }
 
     /// Inspects a named image's details
-    pub fn inspect(&self) -> impl Future<Item = ImageDetails, Error = Error> + Send {
+    pub fn inspect(&self) -> impl Future<Item = models::Image, Error = Error> + Send {
         let args = format!("/images/{}/json", self.name);
 
-        parse_to_trait::<ImageDetails>(self.interact.get(args.as_str()))
+        parse_to_trait::<models::Image>(self.interact.get(args.as_str()))
     }
 
     /// Lists the history of the images set of changes
-    pub fn history(&self) -> impl Future<Item = History, Error = Error> + Send {
+    pub fn history(&self) -> impl Future<Item = HistoryResponseItem, Error = Error> + Send {
         let args = format!("/images/{}/history", self.name);
 
-        parse_to_trait::<History>(self.interact.get(args.as_str()))
+        parse_to_trait::<HistoryResponseItem>(self.interact.get(args.as_str()))
     }
 
     /// Deletes an image

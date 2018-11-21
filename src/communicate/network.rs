@@ -2,7 +2,7 @@ use build::ContainerConnectionOptions;
 use communicate::util::AsSlice;
 use futures::Future;
 use http::StatusCode;
-use representation::rep::NetworkDetails;
+use models;
 use std::{borrow::Cow, sync::Arc};
 use transport::{
     interact::{InteractApi, InteractApiExt},
@@ -34,10 +34,10 @@ impl<'b> Network<'b> {
     }
 
     /// Inspects the current docker network instance's details
-    pub fn inspect(&self) -> impl Future<Item = NetworkDetails, Error = Error> {
+    pub fn inspect(&self) -> impl Future<Item = models::Network, Error = Error> {
         let path = format!("/networks/{}", self.id);
 
-        parse_to_trait::<NetworkDetails>(self.interact.get(path.as_str()))
+        parse_to_trait::<models::Network>(self.interact.get(path.as_str()))
     }
 
     /// Delete the network instance

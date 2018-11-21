@@ -12,8 +12,9 @@ use communicate::util::AsSlice;
 use futures::future;
 use http::StatusCode;
 use hyper::{Body, Chunk};
+use models::ContainerChangeResponseItem;
 use models::{ContainerConfig, ContainerTopResponse, ExecConfig, IdResponse};
-use representation::rep::{Change, Exit, Stats};
+use representation::rep::Stats;
 use std::{sync::Arc, time::Duration};
 use tarball::tarball;
 use transport::{
@@ -77,10 +78,12 @@ impl Container {
     }
 
     /// Returns a set of changes made to the container instance
-    pub fn changes(&self) -> impl Future<Item = Vec<Change>, Error = Error> + Send {
+    pub fn changes(
+        &self,
+    ) -> impl Future<Item = Vec<ContainerChangeResponseItem>, Error = Error> + Send {
         let args = format!("/containers/{}/changes", self.id);
 
-        parse_to_trait::<Vec<Change>>(self.interact.get(args.as_str()))
+        parse_to_trait::<Vec<ContainerChangeResponseItem>>(self.interact.get(args.as_str()))
     }
 
     /// Exports the current docker container into a tarball
@@ -168,10 +171,10 @@ impl Container {
     }
 
     /// Wait until the container stops
-    pub fn wait(&self) -> impl Future<Item = Exit, Error = Error> + Send {
+    pub fn wait(&self) -> impl Future<Item = StatusCode, Error = Error> + Send {
         let args = format!("/containers/{}/wait", self.id);
 
-        parse_to_trait::<Exit>(self.interact.post(args.as_str()))
+        status_code(self.interact.post(args.as_str()))
     }
 
     /// Delete the container instance

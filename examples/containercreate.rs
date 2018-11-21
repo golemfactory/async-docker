@@ -21,7 +21,6 @@ fn main() {
 
     let work = future::lazy(move || {
         let docker: Box<DockerApi> = new_docker(None).unwrap();
-        //let opts = ContainerOptions::builder(image.as_ref()).build();
         let opts = ContainerConfig::new().with_image(image);
         println!("{:?}", serde_json::to_string(&opts));
 
