@@ -11,10 +11,10 @@ use super::lines::Lines;
 use bytes::Bytes;
 use errors::*;
 use futures::{future, Sink, Stream};
-use http::{uri::PathAndQuery, StatusCode};
+use http::uri::PathAndQuery;
 use hyper::Chunk;
 use models::ErrorResponse;
-use serde_json::from_str as de_from_str;
+use serde_json::{from_str as de_from_str, Value};
 use std::{
     fmt::Debug,
     path::Path,
@@ -37,16 +37,10 @@ where
         .map_err(Error::from)
 }
 
-pub(crate) fn status_code(
+pub(crate) fn empty_result(
     future: ResponseFutureWrapper,
-) -> impl Future<Item = StatusCode, Error = Error> + Send {
-    future
-        .and_then(|w| w.map_err(Error::from))
-        .and_then(|response| {
-            debug!("GET");
-            future::ok(response.status())
-        })
-        .map_err(Error::from)
+) -> impl Future<Item = (), Error = Error> + Send {
+    parse_to_trait::<Value>(future).and_then(|_| Ok(()))
 }
 
 pub(crate) fn parse_to_trait<T>(

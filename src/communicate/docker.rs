@@ -4,7 +4,7 @@ use hyper::{client::connect::Connect, rt::Stream};
 use errors::{Error, ErrorKind, Result};
 
 use communicate::util::AsSlice;
-use transport::{parse_to_stream, parse_to_trait, status_code};
+use transport::{parse_to_stream, parse_to_trait};
 
 use std::env;
 
@@ -18,7 +18,7 @@ use super::unix_docker::UnixDocker;
 use communicate::{
     containers::Containers, image::Image, networks::Networks, Container, Images, Network,
 };
-use hyper::{StatusCode, Uri};
+use hyper::Uri;
 use models::SystemEventsResponse;
 use models::SystemInfo;
 use models::SystemVersionResponse;
@@ -34,7 +34,7 @@ pub trait DockerApi {
     fn info(&self) -> Box<Future<Item = SystemInfo, Error = Error> + Send>;
 
     /// Returns a simple ping response indicating the docker daemon is accessible
-    fn ping(&self) -> Box<Future<Item = StatusCode, Error = Error> + Send>;
+    fn ping(&self) -> Box<Future<Item = (), Error = Error> + Send>;
 
     /// Returns an iterator over streamed docker events
     fn events(
@@ -99,10 +99,10 @@ where
         Box::new(parse_to_trait::<SystemInfo>(self.interact.get(arg)))
     }
 
-    fn ping(&self) -> Box<Future<Item = StatusCode, Error = Error> + Send> {
+    fn ping(&self) -> Box<Future<Item = (), Error = Error> + Send> {
         let arg = "/_ping";
 
-        Box::new(status_code(self.interact.get(arg)))
+        Box::new(parse_to_trait(self.interact.get(arg)))
     }
 
     fn events(

@@ -4,13 +4,12 @@ use std::borrow::Cow;
 use Error;
 use Result;
 
-use transport::parse::{parse_to_lines, parse_to_stream, parse_to_trait, status_code};
+use transport::parse::{parse_to_lines, parse_to_stream, parse_to_trait};
 use util::build_simple_query;
 
 use build::{ContainerArchivePutOptions, RmContainerOptions};
 use communicate::util::AsSlice;
 use futures::future;
-use http::StatusCode;
 use hyper::{Body, Chunk};
 use models::ContainerChangeResponseItem;
 use models::{ContainerConfig, ContainerTopResponse, ExecConfig, IdResponse};
@@ -105,97 +104,97 @@ impl Container {
     }
 
     /// Start the container instance
-    pub fn start(&self) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    pub fn start(&self) -> impl Future<Item = (), Error = Error> + Send {
         let args = format!("/containers/{}/start", self.id);
 
-        status_code(self.interact.post(args.as_str()))
+        parse_to_trait(self.interact.post(args.as_str()))
     }
 
     /// Stop the container instance
     pub fn stop(
         &self,
         wait: Option<Duration>,
-    ) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    ) -> impl Future<Item = (), Error = Error> + Send {
         let path = format!("/containers/{}/stop", self.id);
         let query = build_simple_query("t", wait.map(|w| w.as_secs().to_string()));
         let args = (path.as_str(), query.as_slice());
 
-        status_code(self.interact.post(args))
+        parse_to_trait(self.interact.post(args))
     }
 
     /// Restart the container instance
     pub fn restart(
         &self,
         wait: Option<Duration>,
-    ) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    ) -> impl Future<Item = (), Error = Error> + Send {
         let path = format!("/containers/{}/restart", self.id);
         let query = build_simple_query("t", wait.map(|w| w.as_secs().to_string()));
         let args = (path.as_str(), query.as_slice());
 
-        status_code(self.interact.post(args))
+        parse_to_trait(self.interact.post(args))
     }
 
     /// Kill the container instance
     pub fn kill(
         &self,
         signal: Option<&str>,
-    ) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    ) -> impl Future<Item = (), Error = Error> + Send {
         let path = format!("/containers/{}/kill", self.id);
         let query = build_simple_query("signal", signal.map(|sig| sig));
         let args = (path.as_str(), query.as_slice());
 
-        status_code(self.interact.post(args))
+        parse_to_trait(self.interact.post(args))
     }
 
     /// Rename the container instance
-    pub fn rename(&self, name: &str) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    pub fn rename(&self, name: &str) -> impl Future<Item = (), Error = Error> + Send {
         let path = format!("/containers/{}/rename", self.id);
         let query = build_simple_query("name", Some(name));
         let args = (path.as_str(), query.as_slice());
 
-        status_code(self.interact.post(args))
+        parse_to_trait(self.interact.post(args))
     }
 
     /// Pause the container instance
-    pub fn pause(&self) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    pub fn pause(&self) -> impl Future<Item = (), Error = Error> + Send {
         let args = format!("/containers/{}/pause", self.id);
 
-        status_code(self.interact.post(args.as_str()))
+        parse_to_trait(self.interact.post(args.as_str()))
     }
 
     /// Unpause the container instance
-    pub fn unpause(&self) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    pub fn unpause(&self) -> impl Future<Item = (), Error = Error> + Send {
         let args = format!("/containers/{}/unpause", self.id);
 
-        status_code(self.interact.post(args.as_str()))
+        parse_to_trait(self.interact.post(args.as_str()))
     }
 
     /// Wait until the container stops
-    pub fn wait(&self) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    pub fn wait(&self) -> impl Future<Item = (), Error = Error> + Send {
         let args = format!("/containers/{}/wait", self.id);
 
-        status_code(self.interact.post(args.as_str()))
+        parse_to_trait(self.interact.post(args.as_str()))
     }
 
     /// Delete the container instance
     ///
     /// Use remove instead to use the force/v options.
-    pub fn delete(&self) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    pub fn delete(&self) -> impl Future<Item = (), Error = Error> + Send {
         let args = format!("/containers/{}", self.id);
 
-        status_code(self.interact.delete(args.as_str()))
+        parse_to_trait(self.interact.delete(args.as_str()))
     }
 
     /// Delete the container instance (todo: force/v)
     pub fn remove(
         &self,
         opts: &RmContainerOptions,
-    ) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    ) -> impl Future<Item = (), Error = Error> + Send {
         let path = format!("/containers/{}", self.id);
         let query = opts.serialize();
         let args = (path.as_str(), query.as_slice());
 
-        status_code(self.interact.delete(args))
+        parse_to_trait(self.interact.delete(args))
     }
 
     pub fn create_exec(
@@ -246,7 +245,7 @@ impl Container {
     pub fn archive_put(
         &self,
         opts: &ContainerArchivePutOptions,
-    ) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    ) -> impl Future<Item = (), Error = Error> + Send {
         let mut bytes = vec![];
         let path = format!("/containers/{}/archive", self.id);
         let query = opts.serialize();
@@ -255,7 +254,7 @@ impl Container {
         future::result(tarball::dir(&mut bytes, &opts.local_path)).and_then(move |_| {
             let body = Some(Body::from(bytes));
             let args = (path.as_str(), query.as_slice(), body);
-            status_code(interact.put(args))
+            parse_to_trait(interact.put(args))
         })
     }
 
