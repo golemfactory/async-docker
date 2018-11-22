@@ -111,10 +111,7 @@ impl Container {
     }
 
     /// Stop the container instance
-    pub fn stop(
-        &self,
-        wait: Option<Duration>,
-    ) -> impl Future<Item = (), Error = Error> + Send {
+    pub fn stop(&self, wait: Option<Duration>) -> impl Future<Item = (), Error = Error> + Send {
         let path = format!("/containers/{}/stop", self.id);
         let query = build_simple_query("t", wait.map(|w| w.as_secs().to_string()));
         let args = (path.as_str(), query.as_slice());
@@ -123,10 +120,7 @@ impl Container {
     }
 
     /// Restart the container instance
-    pub fn restart(
-        &self,
-        wait: Option<Duration>,
-    ) -> impl Future<Item = (), Error = Error> + Send {
+    pub fn restart(&self, wait: Option<Duration>) -> impl Future<Item = (), Error = Error> + Send {
         let path = format!("/containers/{}/restart", self.id);
         let query = build_simple_query("t", wait.map(|w| w.as_secs().to_string()));
         let args = (path.as_str(), query.as_slice());
@@ -135,10 +129,7 @@ impl Container {
     }
 
     /// Kill the container instance
-    pub fn kill(
-        &self,
-        signal: Option<&str>,
-    ) -> impl Future<Item = (), Error = Error> + Send {
+    pub fn kill(&self, signal: Option<&str>) -> impl Future<Item = (), Error = Error> + Send {
         let path = format!("/containers/{}/kill", self.id);
         let query = build_simple_query("signal", signal.map(|sig| sig));
         let args = (path.as_str(), query.as_slice());
