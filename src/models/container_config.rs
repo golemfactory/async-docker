@@ -89,6 +89,10 @@ pub struct ContainerConfig {
     /// Shell for when `RUN`, `CMD`, and `ENTRYPOINT` uses a shell.
     #[serde(rename = "Shell")]
     shell: Option<Vec<String>>,
+    #[serde(rename = "HostConfig")]
+    host_config: Option<::models::ContainerSummaryInnerHostConfig>,
+    #[serde(rename = "NetworkSettings")]
+    network_settings: Option<::models::ContainerSummaryInnerNetworkSettings>,
 }
 
 impl ContainerConfig {
@@ -120,6 +124,8 @@ impl ContainerConfig {
             stop_signal: None,
             stop_timeout: None,
             shell: None,
+            host_config: None,
+            network_settings: None,
         }
     }
 
@@ -555,5 +561,48 @@ impl ContainerConfig {
 
     pub fn reset_shell(&mut self) {
         self.shell = None;
+    }
+
+    pub fn set_host_config(&mut self, host_config: ::models::ContainerSummaryInnerHostConfig) {
+        self.host_config = Some(host_config);
+    }
+
+    pub fn with_host_config(
+        mut self,
+        host_config: ::models::ContainerSummaryInnerHostConfig,
+    ) -> ContainerConfig {
+        self.host_config = Some(host_config);
+        self
+    }
+
+    pub fn host_config(&self) -> Option<&::models::ContainerSummaryInnerHostConfig> {
+        self.host_config.as_ref()
+    }
+
+    pub fn reset_host_config(&mut self) {
+        self.host_config = None;
+    }
+
+    pub fn set_network_settings(
+        &mut self,
+        network_settings: ::models::ContainerSummaryInnerNetworkSettings,
+    ) {
+        self.network_settings = Some(network_settings);
+    }
+
+    pub fn with_network_settings(
+        mut self,
+        network_settings: ::models::ContainerSummaryInnerNetworkSettings,
+    ) -> ContainerConfig {
+        self.network_settings = Some(network_settings);
+        self
+    }
+
+    pub fn network_settings(&self) -> Option<&::models::ContainerSummaryInnerNetworkSettings> {
+        self.network_settings.as_ref()
+    }
+
+    pub fn reset_network_settings(&mut self) {
+        self.network_settings = None;
     }
 }
