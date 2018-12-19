@@ -90,9 +90,9 @@ pub struct ContainerConfig {
     #[serde(rename = "Shell")]
     shell: Option<Vec<String>>,
     #[serde(rename = "HostConfig")]
-    host_config: Option<::models::ContainerSummaryInnerHostConfig>,
+    host_config: Option<::models::HostConfig>,
     #[serde(rename = "NetworkSettings")]
-    network_settings: Option<::models::ContainerSummaryInnerNetworkSettings>,
+    network_settings: Option<::models::NetworkConfig>,
 }
 
 impl ContainerConfig {
@@ -563,19 +563,16 @@ impl ContainerConfig {
         self.shell = None;
     }
 
-    pub fn set_host_config(&mut self, host_config: ::models::ContainerSummaryInnerHostConfig) {
+    pub fn set_host_config(&mut self, host_config: ::models::HostConfig) {
         self.host_config = Some(host_config);
     }
 
-    pub fn with_host_config(
-        mut self,
-        host_config: ::models::ContainerSummaryInnerHostConfig,
-    ) -> ContainerConfig {
+    pub fn with_host_config(mut self, host_config: ::models::HostConfig) -> ContainerConfig {
         self.host_config = Some(host_config);
         self
     }
 
-    pub fn host_config(&self) -> Option<&::models::ContainerSummaryInnerHostConfig> {
+    pub fn host_config(&self) -> Option<&::models::HostConfig> {
         self.host_config.as_ref()
     }
 
@@ -583,22 +580,19 @@ impl ContainerConfig {
         self.host_config = None;
     }
 
-    pub fn set_network_settings(
-        &mut self,
-        network_settings: ::models::ContainerSummaryInnerNetworkSettings,
-    ) {
+    pub fn set_network_settings(&mut self, network_settings: ::models::NetworkConfig) {
         self.network_settings = Some(network_settings);
     }
 
     pub fn with_network_settings(
         mut self,
-        network_settings: ::models::ContainerSummaryInnerNetworkSettings,
+        network_settings: ::models::NetworkConfig,
     ) -> ContainerConfig {
         self.network_settings = Some(network_settings);
         self
     }
 
-    pub fn network_settings(&self) -> Option<&::models::ContainerSummaryInnerNetworkSettings> {
+    pub fn network_settings(&self) -> Option<&::models::NetworkConfig> {
         self.network_settings.as_ref()
     }
 

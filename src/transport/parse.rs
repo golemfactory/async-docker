@@ -12,9 +12,10 @@ use bytes::Bytes;
 use errors::*;
 use futures::{future, Sink, Stream};
 use http::uri::PathAndQuery;
+use http::StatusCode;
 use hyper::Chunk;
 use models::ErrorResponse;
-use serde_json::{from_str as de_from_str, Value};
+use serde_json::from_str as de_from_str;
 use std::{
     fmt::Debug,
     path::Path,
@@ -37,10 +38,39 @@ where
         .map_err(Error::from)
 }
 
+pub(crate) fn empty_result2(
+    future: ResponseFutureWrapper,
+) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    future.and_then(|w| {
+        w.map_err(Error::from).and_then(|response| {
+            let status = response.status();
+            if status.is_success() {
+                future::Either::A(future::ok(status))
+            } else {
+                future::Either::B(
+                    response
+                        .into_body()
+                        .concat2()
+                        .map_err(Error::from)
+                        .and_then(move |chunk| {
+                            let body = str::from_utf8(chunk.as_ref()).map_err(Error::from)?;
+                            Err(match de_from_str::<ErrorResponse>(body) {
+                                Ok(x) => ErrorKind::DockerApi(x, status).into(),
+                                Err(_) => ErrorKind::DockerApiUnknown(body.to_string(), status),
+                            }
+                            .into())
+                        })
+                        .and_then(|_: StatusCode| Ok(StatusCode::default())),
+                )
+            }
+        })
+    })
+}
+
 pub(crate) fn empty_result(
     future: ResponseFutureWrapper,
 ) -> impl Future<Item = (), Error = Error> + Send {
-    parse_to_trait::<Value>(future).and_then(|_| Ok(()))
+    parse_to_trait::<()>(future).and_then(|_| Ok(()))
 }
 
 pub(crate) fn parse_to_trait<T>(
