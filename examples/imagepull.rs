@@ -4,7 +4,7 @@ extern crate http;
 extern crate tokio;
 
 use async_docker::{new_docker, DockerApi, PullOptions};
-use futures::{future, Future};
+use futures::{future, Future, Stream};
 use std::env;
 
 fn main() {
@@ -23,7 +23,7 @@ fn main() {
         docker
             .images()
             .pull(&opts)
-            .and_then(|a| Ok(println!("{:#?}", a)))
+            .for_each(|a| Ok(println!("{:#?}", a)))
             .map_err(|e| eprintln!("{:?}", e))
     });
 

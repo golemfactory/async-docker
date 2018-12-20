@@ -8,8 +8,9 @@ use async_docker::models::HostConfig;
 use async_docker::{
     communicate::{new_docker, DockerApi},
     models::ContainerConfig,
+    PullOptions,
 };
-use futures::{future, Future};
+use futures::{future, Future, Stream};
 use std::borrow::Cow;
 use std::env;
 
@@ -30,7 +31,7 @@ fn main() {
     let work = future::lazy(move || {
         let docker: Box<DockerApi> = new_docker(None).unwrap();
         let opts = ContainerConfig::new()
-            .with_image(image)
+            .with_image(image.clone())
             .with_env(vec!["BLENDER_DEVICE_TYPE=cpu".to_string()])
             .with_host_config(HostConfig::new().with_binds(vec![
                 pwd.clone() + "/resources:/golem/resources",
@@ -38,20 +39,34 @@ fn main() {
                 pwd + "/work:/golem/work",
             ]))
             .with_cmd(vec!["/golem/work/job.py".into()]);
-        println!("{:?}", serde_json::to_string(&opts));
+
+        let pull_opts = PullOptions::builder()
+            .image("golemfactory/blender")
+            .tag("1.5")
+            .build();
 
         docker
-            .containers()
-            .create(&opts)
-            .and_then(move |a| {
-                let id = a.id().to_owned();
-                Ok(docker.container(Cow::<'static>::from(id)))
+            .images()
+            .pull(&pull_opts)
+            .for_each(|_| Ok(()))
+            .and_then(move |_| {
+                docker
+                    .containers()
+                    .create(&opts)
+                    .and_then(move |a| {
+                        let id = a.id().to_owned();
+                        Ok(docker.container(Cow::<'static>::from(id)))
+                    })
+                    .and_then(|container| {
+                        let container2 = container.clone();
+                        container
+                            .start()
+                            .and_then(move |_| container.wait())
+                            .then(move |x| container2.delete().then(|_| x))
+                    })
             })
-            .and_then(|container| {
-                container
-                    .start()
-                    .and_then(move |_| container.wait().and_then(move |_| container.delete()))
-            })
+            .map(|x| println!("{:?}", x))
+            .map_err(|e| println!("Err: {}", e))
             .then(|_| Ok(()))
     });
 

@@ -8,14 +8,13 @@ use models::ImageSearchResponseItem;
 use serde_json::Value;
 use std::sync::Arc;
 use tarball::tarball;
+use transport::parse::parse_to_stream;
 use transport::{
     interact::{InteractApi, InteractApiExt},
     parse::{parse_to_lines, parse_to_trait},
 };
 use url::form_urlencoded;
 use Error;
-use transport::parse::empty_result2;
-use http::StatusCode;
 
 /// Interface for docker images
 pub struct Images {
@@ -74,13 +73,16 @@ impl Images {
     }
 
     /// Pull and create a new docker images from an existing image
-    pub fn pull(&self, opts: &PullOptions) -> impl Future<Item = StatusCode, Error = Error> + Send {
+    pub fn pull(
+        &self,
+        opts: &PullOptions,
+    ) -> impl Stream<Item = Result<Value, Error>, Error = Error> + Send {
         let path = "/images/create";
         let query = opts.serialize();
 
         let args = (path, query.as_slice());
 
-        empty_result2(self.interact.post(args))
+        parse_to_stream(self.interact.post(args))
     }
 
     /// exports a collection of named images,

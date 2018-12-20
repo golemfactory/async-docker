@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use Error;
 use Result;
 
-use transport::parse::{parse_to_lines, parse_to_stream, parse_to_trait};
+use transport::parse::{empty_result2, parse_to_lines, parse_to_stream, parse_to_trait};
 use util::build_simple_query;
 
 use build::{ContainerArchivePutOptions, RmContainerOptions};
@@ -15,9 +15,9 @@ use hyper::{Body, Chunk};
 use models::ContainerChangeResponseItem;
 use models::{ContainerConfig, ContainerTopResponse, ExecConfig, IdResponse};
 use representation::rep::Stats;
+use serde_json::Value;
 use std::{sync::Arc, time::Duration};
 use tarball::tarball;
-use transport::parse::empty_result2;
 use transport::{
     interact::{InteractApi, InteractApiExt},
     tty,
@@ -163,19 +163,19 @@ impl Container {
     }
 
     /// Wait until the container stops
-    pub fn wait(&self) -> impl Future<Item = String, Error = Error> + Send {
+    pub fn wait(&self) -> impl Future<Item = Value, Error = Error> + Send {
         let args = format!("/containers/{}/wait", self.id);
 
-        parse_to_trait::<String>(self.interact.post(args.as_str()))
+        parse_to_trait::<Value>(self.interact.post(args.as_str()))
     }
 
     /// Delete the container instance
     ///
     /// Use remove instead to use the force/v options.
-    pub fn delete(&self) -> impl Future<Item = (), Error = Error> + Send {
+    pub fn delete(&self) -> impl Future<Item = StatusCode, Error = Error> + Send {
         let args = format!("/containers/{}", self.id);
 
-        parse_to_trait(self.interact.delete(args.as_str()))
+        empty_result2(self.interact.delete(args.as_str()))
     }
 
     /// Delete the container instance (todo: force/v)

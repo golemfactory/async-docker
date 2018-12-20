@@ -54,6 +54,7 @@ pub(crate) fn empty_result2(
                         .map_err(Error::from)
                         .and_then(move |chunk| {
                             let body = str::from_utf8(chunk.as_ref()).map_err(Error::from)?;
+                            println!("wtf?");
                             Err(match de_from_str::<ErrorResponse>(body) {
                                 Ok(x) => ErrorKind::DockerApi(x, status).into(),
                                 Err(_) => ErrorKind::DockerApiUnknown(body.to_string(), status),
