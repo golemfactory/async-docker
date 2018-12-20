@@ -26,7 +26,7 @@ use std::{borrow::Cow, marker::PhantomData, sync::Arc};
 use transport::interact::{InteractApi, InteractApiExt};
 
 /// Entry point interface for communicating with docker daemon
-pub trait DockerApi {
+pub trait DockerApi: Send + Sync {
     /// Returns version information associated with the docker daemon
     fn version(&self) -> Box<Future<Item = SystemVersionResponse, Error = Error> + Send>;
 

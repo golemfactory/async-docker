@@ -14,6 +14,8 @@ use transport::{
 };
 use url::form_urlencoded;
 use Error;
+use transport::parse::empty_result2;
+use http::StatusCode;
 
 /// Interface for docker images
 pub struct Images {
@@ -72,13 +74,13 @@ impl Images {
     }
 
     /// Pull and create a new docker images from an existing image
-    pub fn pull(&self, opts: &PullOptions) -> impl Future<Item = Value, Error = Error> + Send {
+    pub fn pull(&self, opts: &PullOptions) -> impl Future<Item = StatusCode, Error = Error> + Send {
         let path = "/images/create";
         let query = opts.serialize();
 
         let args = (path, query.as_slice());
 
-        parse_to_trait::<Value>(self.interact.post(args))
+        empty_result2(self.interact.post(args))
     }
 
     /// exports a collection of named images,

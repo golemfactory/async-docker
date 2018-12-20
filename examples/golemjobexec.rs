@@ -44,7 +44,6 @@ fn main() {
             .containers()
             .create(&opts)
             .and_then(move |a| {
-                let docker: Box<DockerApi> = new_docker(None).unwrap();
                 let id = a.id().to_owned();
                 Ok(docker.container(Cow::<'static>::from(id)))
             })
