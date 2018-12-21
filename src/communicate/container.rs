@@ -246,7 +246,7 @@ impl Container {
     pub fn archive_put(
         &self,
         opts: &ContainerArchivePutOptions,
-    ) -> impl Future<Item = (), Error = Error> + Send {
+    ) -> impl Future<Item = StatusCode, Error = Error> + Send {
         let mut bytes = vec![];
         let path = format!("/containers/{}/archive", self.id);
         let query = opts.serialize();
@@ -255,7 +255,7 @@ impl Container {
         future::result(tarball::dir(&mut bytes, &opts.local_path)).and_then(move |_| {
             let body = Some(Body::from(bytes));
             let args = (path.as_str(), query.as_slice(), body);
-            parse_to_trait(interact.put(args))
+            empty_result2(interact.put(args))
         })
     }
 
