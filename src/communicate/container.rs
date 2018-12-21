@@ -15,13 +15,13 @@ use hyper::{Body, Chunk};
 use models::ContainerChangeResponseItem;
 use models::{ContainerConfig, ContainerTopResponse, ExecConfig, IdResponse};
 use representation::rep::Stats;
-use serde_json::Value;
 use std::{sync::Arc, time::Duration};
 use tarball::tarball;
 use transport::{
     interact::{InteractApi, InteractApiExt},
     tty,
 };
+use serde_json::Value;
 
 /// Interface for accessing and manipulating a docker container
 pub struct Container {
@@ -163,10 +163,18 @@ impl Container {
     }
 
     /// Wait until the container stops
-    pub fn wait(&self) -> impl Future<Item = Value, Error = Error> + Send {
+    pub fn wait(&self) -> impl Future<Item = u8, Error = Error> + Send {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct WaitResult {
+            _error: Value,
+            status_code: u8,
+        }
+
         let args = format!("/containers/{}/wait", self.id);
 
-        parse_to_trait::<Value>(self.interact.post(args.as_str()))
+        parse_to_trait::<WaitResult>(self.interact.post(args.as_str()))
+            .map(|res| res.status_code)
     }
 
     /// Delete the container instance

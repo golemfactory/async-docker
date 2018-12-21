@@ -65,7 +65,7 @@ fn main() {
                             .then(move |x| container2.delete().then(|_| x))
                     })
             })
-            .map(|x| println!("{:?}", x))
+            .map(|x| println!("Status code of the job: {}", x))
             .map_err(|e| println!("Err: {}", e))
             .then(|_| Ok(()))
     });
