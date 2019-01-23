@@ -243,7 +243,21 @@ impl Container {
             .flatten_stream()
     }
 
-    pub fn archive_put(
+    pub fn archive_put_stream<S: Stream<Item = Chunk, Error = std::io::Error> + Send + 'static>(
+        &self,
+        opts: &ContainerArchivePutOptions,
+        stream: S,
+    ) -> impl Future<Item = StatusCode, Error = Error> + Send {
+        let path = format!("/containers/{}/archive", self.id);
+        let query = opts.serialize();
+        let body = Some(Body::wrap_stream(stream));
+        let interact = self.interact.clone();
+
+        let args = (path.as_str(), query.as_slice(), body);
+        empty_result2(interact.put(args))
+    }
+
+    pub fn archive_put_file(
         &self,
         opts: &ContainerArchivePutOptions,
     ) -> impl Future<Item = StatusCode, Error = Error> + Send {

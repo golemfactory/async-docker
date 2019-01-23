@@ -26,7 +26,7 @@ fn main() {
 
         docker
             .container(container.into())
-            .archive_put(&opts)
+            .archive_put_file(&opts)
             .then(|a| Ok(println!("{:?}", a)))
     });
 
