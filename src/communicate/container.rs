@@ -8,6 +8,7 @@ use transport::parse::{empty_result2, parse_to_lines, parse_to_stream, parse_to_
 use util::build_simple_query;
 
 use build::{ContainerArchivePutOptions, RmContainerOptions};
+use bytes::Bytes;
 use communicate::util::AsSlice;
 use futures::future;
 use http::StatusCode;
@@ -15,13 +16,13 @@ use hyper::{Body, Chunk};
 use models::ContainerChangeResponseItem;
 use models::{ContainerConfig, ContainerTopResponse, ExecConfig, IdResponse};
 use representation::rep::Stats;
+use serde_json::Value;
 use std::{sync::Arc, time::Duration};
 use tarball::tarball;
 use transport::{
     interact::{InteractApi, InteractApiExt},
     tty,
 };
-use serde_json::Value;
 
 /// Interface for accessing and manipulating a docker container
 pub struct Container {
@@ -173,8 +174,7 @@ impl Container {
 
         let args = format!("/containers/{}/wait", self.id);
 
-        parse_to_trait::<WaitResult>(self.interact.post(args.as_str()))
-            .map(|res| res.status_code)
+        parse_to_trait::<WaitResult>(self.interact.post(args.as_str())).map(|res| res.status_code)
     }
 
     /// Delete the container instance
@@ -243,7 +243,7 @@ impl Container {
             .flatten_stream()
     }
 
-    pub fn archive_put_stream<S: Stream<Item = Chunk, Error = std::io::Error> + Send + 'static>(
+    pub fn archive_put_stream<S: Stream<Item = Bytes, Error = std::io::Error> + Send + 'static>(
         &self,
         opts: &ContainerArchivePutOptions,
         stream: S,
