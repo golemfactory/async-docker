@@ -231,7 +231,7 @@ impl Container {
             .flatten_stream()
     }
 
-    pub fn archive_get(&self, pth: &str) -> impl Stream<Item = Chunk, Error = Error> {
+    pub fn archive_get(&self, pth: &str) -> impl Stream<Item = Bytes, Error = Error> {
         let path = format!("/containers/{}/archive", self.id);
         let query = build_simple_query("path", Some(pth));
         let args = (path.as_str(), query.as_slice());
@@ -239,11 +239,15 @@ impl Container {
         self.interact
             .get(args)
             .and_then(|a| a.map_err(Error::from))
-            .and_then(|a| Ok(a.into_body().map_err(Error::from)))
+            .map(|a| a.into_body().map_err(Error::from))
             .flatten_stream()
+            .map(Bytes::from)
     }
 
-    pub fn archive_put_stream<S: Stream<Item = Bytes, Error = std::io::Error> + Send + 'static>(
+    pub fn archive_put_stream<
+        S: Stream<Item = Bytes, Error = E> + Send + 'static,
+        E: std::error::Error + Send + Sync + 'static,
+    >(
         &self,
         opts: &ContainerArchivePutOptions,
         stream: S,
