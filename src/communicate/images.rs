@@ -11,10 +11,11 @@ use tarball::tarball;
 use transport::parse::parse_to_stream;
 use transport::{
     interact::{InteractApi, InteractApiExt},
-    parse::{parse_to_lines, parse_to_trait},
+    parse::{parse_to_lines, parse_to_trait, empty_result2},
 };
 use url::form_urlencoded;
 use Error;
+use hyper::StatusCode;
 
 /// Interface for docker images
 pub struct Images {
@@ -76,13 +77,13 @@ impl Images {
     pub fn pull(
         &self,
         opts: &PullOptions,
-    ) -> impl Stream<Item = Result<Value, Error>, Error = Error> + Send {
+    ) -> impl Future<Item = StatusCode, Error = Error> + Send {
         let path = "/images/create";
         let query = opts.serialize();
 
         let args = (path, query.as_slice());
 
-        parse_to_stream(self.interact.post(args))
+        empty_result2(self.interact.post(args))
     }
 
     /// exports a collection of named images,
