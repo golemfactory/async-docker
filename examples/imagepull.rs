@@ -23,7 +23,7 @@ fn main() {
         docker
             .images()
             .pull(&opts)
-            .map(|a| println!("{:#?}", a))
+            .for_each(|a| Ok(println!("{:#?}", a)))
             .map_err(|e| eprintln!("{:?}", e))
     });
 
