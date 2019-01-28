@@ -40,7 +40,7 @@ pub trait DockerApi: Send + Sync {
     fn events(
         &self,
         opts: &EventsOptions,
-    ) -> Box<Stream<Item = Result<SystemEventsResponse>, Error = Error> + Send>;
+    ) -> Box<Stream<Item = SystemEventsResponse, Error = Error> + Send>;
 
     /// Exports an interface for interacting with docker container
     fn container(&self, id: Cow<'static, str>) -> Container;
@@ -108,13 +108,11 @@ where
     fn events(
         &self,
         opts: &EventsOptions,
-    ) -> Box<Stream<Item = Result<SystemEventsResponse>, Error = Error> + Send> {
+    ) -> Box<Stream<Item = SystemEventsResponse, Error = Error> + Send> {
         let query = opts.serialize();
         let arg = ("/events", query.as_slice());
 
-        Box::new(parse_to_stream::<SystemEventsResponse>(
-            self.interact.get(arg),
-        ))
+        Box::new(parse_to_stream(self.interact.get(arg)))
     }
 
     fn container(&self, id: Cow<'static, str>) -> Container {

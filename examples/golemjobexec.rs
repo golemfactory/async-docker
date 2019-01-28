@@ -48,7 +48,7 @@ fn main() {
         docker
             .images()
             .pull(&pull_opts)
-            .for_each(|_| Ok(()))
+            .for_each(|a| Ok(println!("{:?}", a)))
             .and_then(move |_| {
                 docker
                     .containers()

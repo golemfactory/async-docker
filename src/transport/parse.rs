@@ -124,7 +124,7 @@ pub(crate) fn parse_to_lines(
 
 pub(crate) fn parse_to_stream<T>(
     future: ResponseFutureWrapper,
-) -> impl Stream<Item = Result<T>, Error = Error>
+) -> impl Stream<Item = T, Error = Error>
 where
     T: for<'a> ::serde::Deserialize<'a> + Send + Debug + 'static,
 {
@@ -150,6 +150,7 @@ where
                 .map_err(Error::from)
         })
         .flatten_stream()
+        .and_then(|res| res)
 }
 
 #[allow(dead_code)]

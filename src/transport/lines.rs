@@ -54,7 +54,13 @@ where
         match self.stream.poll()? {
             Async::NotReady => Ok(Async::NotReady),
             Async::Ready(None) => match self.process(true) {
-                Some(Ok(line)) => Ok(Async::Ready(Some(line))),
+                Some(Ok(line)) => {
+                    if line == "" {
+                        Ok(Async::Ready(None))
+                    } else {
+                        Ok(Async::Ready(Some(line)))
+                    }
+                }
                 Some(Err(err)) => Err(err.into()),
                 None => Ok(Async::Ready(None)),
             },

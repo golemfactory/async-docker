@@ -2,7 +2,6 @@ use build::LogsOptions;
 use futures::{Future, Stream};
 use std::borrow::Cow;
 use Error;
-use Result;
 
 use transport::parse::{empty_result2, parse_to_lines, parse_to_stream, parse_to_trait};
 use util::build_simple_query;
@@ -100,7 +99,7 @@ impl Container {
     }
 
     /// Returns a stream of stats specific to this container instance
-    pub fn stats(&self) -> impl Stream<Item = Result<Stats>, Error = Error> + Send {
+    pub fn stats(&self) -> impl Stream<Item = Stats, Error = Error> + Send {
         let args = format!("/containers/{}/stats", self.id);
 
         parse_to_stream::<Stats>(self.interact.get(args.as_str()))

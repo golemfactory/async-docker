@@ -73,10 +73,7 @@ impl Images {
     }
 
     /// Pull and create a new docker images from an existing image
-    pub fn pull(
-        &self,
-        opts: &PullOptions,
-    ) -> impl Stream<Item = Result<Value, Error>, Error = Error> + Send {
+    pub fn pull(&self, opts: &PullOptions) -> impl Stream<Item = Value, Error = Error> + Send {
         let path = "/images/create";
         let query = opts.serialize();
 
