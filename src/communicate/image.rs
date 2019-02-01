@@ -1,8 +1,7 @@
 use errors::ErrorKind as EK;
 use futures::{future, Future, Stream};
 use hyper::Chunk;
-use models;
-use models::HistoryResponseItem;
+use models::{self, HistoryResponseItem};
 use representation::rep::Status;
 use serde_json::Value;
 use std::{borrow::Cow, sync::Arc};

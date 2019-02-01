@@ -3,10 +3,9 @@ use communicate::util::AsSlice;
 use futures::Future;
 use models;
 use std::{borrow::Cow, sync::Arc};
-use transport::parse::empty_result;
 use transport::{
     interact::{InteractApi, InteractApiExt},
-    parse::parse_to_trait,
+    parse::{empty_result, parse_to_trait},
 };
 use Error;
 

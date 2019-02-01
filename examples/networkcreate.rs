@@ -3,8 +3,10 @@ extern crate futures;
 extern crate http;
 extern crate tokio;
 
-use async_docker::communicate::{new_docker, DockerApi};
-use async_docker::models::NetworkConfig;
+use async_docker::{
+    communicate::{new_docker, DockerApi},
+    models::NetworkConfig,
+};
 use futures::{future, Future};
 use std::env;
 

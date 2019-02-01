@@ -4,15 +4,13 @@ extern crate http;
 extern crate serde_json;
 extern crate tokio;
 
-use async_docker::models::HostConfig;
 use async_docker::{
     communicate::{new_docker, DockerApi},
-    models::ContainerConfig,
+    models::{ContainerConfig, HostConfig},
     PullOptions,
 };
 use futures::{future, Future, Stream};
-use std::borrow::Cow;
-use std::env;
+use std::{borrow::Cow, env};
 
 fn main() {
     if env::args().count() < 2 {

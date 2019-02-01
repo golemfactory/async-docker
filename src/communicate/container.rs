@@ -3,7 +3,9 @@ use futures::{Future, Stream};
 use std::borrow::Cow;
 use Error;
 
-use transport::parse::{empty_result2, parse_to_lines, parse_to_stream, parse_to_trait, transform_stream};
+use transport::parse::{
+    empty_result2, parse_to_lines, parse_to_stream, parse_to_trait, transform_stream,
+};
 use util::build_simple_query;
 
 use build::{ContainerArchivePutOptions, RmContainerOptions};
@@ -12,8 +14,9 @@ use communicate::util::AsSlice;
 use futures::future;
 use http::StatusCode;
 use hyper::{Body, Chunk};
-use models::ContainerChangeResponseItem;
-use models::{ContainerConfig, ContainerTopResponse, ExecConfig, IdResponse};
+use models::{
+    ContainerChangeResponseItem, ContainerConfig, ContainerTopResponse, ExecConfig, IdResponse,
+};
 use representation::rep::Stats;
 use serde_json::Value;
 use std::{sync::Arc, time::Duration};

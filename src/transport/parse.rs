@@ -10,12 +10,9 @@ use self::tokio_codec::{BytesCodec, FramedWrite};
 use super::lines::Lines;
 use bytes::Bytes;
 use errors::*;
-use futures::stream;
-use futures::{future, Sink, Stream};
-use http::uri::PathAndQuery;
-use http::StatusCode;
-use hyper::Chunk;
-use hyper::Response;
+use futures::{future, stream, Sink, Stream};
+use http::{uri::PathAndQuery, StatusCode};
+use hyper::{Chunk, Response};
 use models::ErrorResponse;
 use serde_json::from_str as de_from_str;
 use std::{
@@ -182,25 +179,29 @@ where
     .map_err(Error::from)
 }
 
-pub fn transform_stream(response: Response<Body>) -> impl Stream<Item = Bytes, Error = Error> + Send + 'static {
+pub fn transform_stream(
+    response: Response<Body>,
+) -> impl Stream<Item = Bytes, Error = Error> + Send + 'static {
     let status = response.status();
     let body = response.into_body().map_err(Error::from);
     if status.is_success() {
-        Box::new(body.map(|a| a.into_bytes())) as Box<Stream<Item = Bytes, Error = Error> + Send + 'static >
+        Box::new(body.map(|a| a.into_bytes()))
+            as Box<Stream<Item = Bytes, Error = Error> + Send + 'static>
     } else {
-        Box::new(body
-            .concat2()
-            .and_then(move |chunk: Chunk| {
-                str::from_utf8(&chunk)
-                    .map_err(Error::from)
-                    .and_then(|body| match de_from_str::<ErrorResponse>(body) {
-                        Ok(x) => Err(ErrorKind::DockerApi(x, status).into()),
-                        Err(_) => {
-                            Err(ErrorKind::DockerApiUnknown(body.to_string(), status).into())
-                        }
-                    })
-            })
-            .into_stream())
+        Box::new(
+            body.concat2()
+                .and_then(move |chunk: Chunk| {
+                    str::from_utf8(&chunk)
+                        .map_err(Error::from)
+                        .and_then(|body| match de_from_str::<ErrorResponse>(body) {
+                            Ok(x) => Err(ErrorKind::DockerApi(x, status).into()),
+                            Err(_) => {
+                                Err(ErrorKind::DockerApiUnknown(body.to_string(), status).into())
+                            }
+                        })
+                })
+                .into_stream(),
+        )
     }
 }
 

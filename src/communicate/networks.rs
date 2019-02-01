@@ -2,9 +2,7 @@ use build::NetworkListOptions;
 use communicate::util::AsSlice;
 use futures::Future;
 use hyper::Body;
-use models::Network;
-use models::NetworkConfig;
-use models::NetworkCreateResponse;
+use models::{Network, NetworkConfig, NetworkCreateResponse};
 use std::sync::Arc;
 use transport::{
     interact::{InteractApi, InteractApiExt},

@@ -2,16 +2,13 @@ use build::{BuildOptions, ImageListOptions, PullOptions};
 use communicate::util::{build_simple_query, AsSlice};
 use futures::{future, Future, Stream};
 use hyper::Body;
-use models::ContainerTopResponse;
-use models::Image;
-use models::ImageSearchResponseItem;
+use models::{ContainerTopResponse, Image, ImageSearchResponseItem};
 use serde_json::Value;
 use std::sync::Arc;
 use tarball::tarball;
-use transport::parse::parse_to_stream;
 use transport::{
     interact::{InteractApi, InteractApiExt},
-    parse::{parse_to_lines, parse_to_trait},
+    parse::{parse_to_lines, parse_to_stream, parse_to_trait},
 };
 use url::form_urlencoded;
 use Error;

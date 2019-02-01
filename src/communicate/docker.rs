@@ -19,9 +19,7 @@ use communicate::{
     containers::Containers, image::Image, networks::Networks, Container, Images, Network,
 };
 use hyper::Uri;
-use models::SystemEventsResponse;
-use models::SystemInfo;
-use models::SystemVersionResponse;
+use models::{SystemEventsResponse, SystemInfo, SystemVersionResponse};
 use std::{borrow::Cow, marker::PhantomData, sync::Arc};
 use transport::interact::{InteractApi, InteractApiExt};
 
