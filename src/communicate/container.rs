@@ -3,7 +3,7 @@ use futures::{Future, Stream};
 use std::borrow::Cow;
 use Error;
 
-use transport::parse::{empty_result2, parse_to_lines, parse_to_stream, parse_to_trait};
+use transport::parse::{empty_result2, parse_to_lines, parse_to_stream, parse_to_trait, transform_stream};
 use util::build_simple_query;
 
 use build::{ContainerArchivePutOptions, RmContainerOptions};
@@ -238,7 +238,7 @@ impl Container {
         self.interact
             .get(args)
             .and_then(|a| a.map_err(Error::from))
-            .map(|a| a.into_body().map_err(Error::from))
+            .map(|a| transform_stream(a))
             .flatten_stream()
             .map(Bytes::from)
     }

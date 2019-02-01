@@ -10,10 +10,12 @@ use self::tokio_codec::{BytesCodec, FramedWrite};
 use super::lines::Lines;
 use bytes::Bytes;
 use errors::*;
+use futures::stream;
 use futures::{future, Sink, Stream};
 use http::uri::PathAndQuery;
 use http::StatusCode;
 use hyper::Chunk;
+use hyper::Response;
 use models::ErrorResponse;
 use serde_json::from_str as de_from_str;
 use std::{
@@ -87,31 +89,19 @@ where
                 .into_body()
                 .concat2()
                 .map_err(Error::from)
-                .and_then(move |chunk| {
-                    let body = str::from_utf8(chunk.as_ref()).map_err(Error::from)?;
-                    de_from_str::<T>(body).map_err(|_| {
-                        match de_from_str::<ErrorResponse>(body) {
-                            Ok(x) => ErrorKind::DockerApi(x, status).into(),
-                            Err(_) => ErrorKind::DockerApiUnknown(body.to_string(), status),
-                        }
-                        .into()
-                    })
-                })
+                .and_then(move |chunk| parse_single_field(&chunk, status))
         })
     })
 }
 
 pub(crate) fn parse_to_lines(
     future: ResponseFutureWrapper,
-) -> impl Stream<Item = String, Error = Error> {
+) -> impl Stream<Item = String, Error = Error> + Send + 'static {
     future
         .and_then(|w| {
             w.map_err(Error::from)
                 .and_then(|response| {
-                    let body = response
-                        .into_body()
-                        .map_err(Error::from)
-                        .map({ |a| a.into_bytes().clone() });
+                    let body = transform_stream(response);
 
                     let lines = Lines::new(body);
 
@@ -124,7 +114,7 @@ pub(crate) fn parse_to_lines(
 
 pub(crate) fn parse_to_stream<T>(
     future: ResponseFutureWrapper,
-) -> impl Stream<Item = T, Error = Error>
+) -> impl Stream<Item = T, Error = Error> + Send + 'static
 where
     T: for<'a> ::serde::Deserialize<'a> + Send + Debug + 'static,
 {
@@ -132,18 +122,13 @@ where
         .and_then(|w| {
             w.map_err(Error::from)
                 .and_then(|response| {
-                    let body = response
-                        .into_body()
-                        .map_err(Error::from)
-                        .map({ |a| a.into_bytes().clone() });
+                    let status = response.status();
+                    let body = transform_stream(response);
 
                     let lines = Lines::new(body);
 
-                    let mapped = lines.map(|chunk| {
-                        let as_str = str::from_utf8(chunk.as_ref())?;
-                        let t = de_from_str::<T>(as_str).map_err(Error::from);
-                        t
-                    });
+                    let mapped =
+                        lines.map(move |chunk| parse_single_field(&Chunk::from(chunk), status));
 
                     Ok(mapped)
                 })
@@ -179,6 +164,44 @@ pub(crate) fn parse_to_file(
             .and_then(|_| Ok(()))
             .map_err(Error::from)
     })
+}
+
+fn parse_single_field<T>(chunk: &Chunk, status: StatusCode) -> Result<T>
+where
+    T: for<'a> ::serde::Deserialize<'a> + Send + 'static,
+{
+    let body = str::from_utf8(chunk).map_err(Error::from)?;
+    if status.is_success() {
+        de_from_str::<T>(body).map_err(|_| ErrorKind::DockerApiUnknown(body.to_string(), status))
+    } else {
+        Err(match de_from_str::<ErrorResponse>(body) {
+            Ok(x) => ErrorKind::DockerApi(x, status),
+            Err(_) => ErrorKind::DockerApiUnknown(body.to_string(), status),
+        })
+    }
+    .map_err(Error::from)
+}
+
+pub fn transform_stream(response: Response<Body>) -> impl Stream<Item = Bytes, Error = Error> + Send + 'static {
+    let status = response.status();
+    let body = response.into_body().map_err(Error::from);
+    if status.is_success() {
+        Box::new(body.map(|a| a.into_bytes())) as Box<Stream<Item = Bytes, Error = Error> + Send + 'static >
+    } else {
+        Box::new(body
+            .concat2()
+            .and_then(move |chunk: Chunk| {
+                str::from_utf8(&chunk)
+                    .map_err(Error::from)
+                    .and_then(|body| match de_from_str::<ErrorResponse>(body) {
+                        Ok(x) => Err(ErrorKind::DockerApi(x, status).into()),
+                        Err(_) => {
+                            Err(ErrorKind::DockerApiUnknown(body.to_string(), status).into())
+                        }
+                    })
+            })
+            .into_stream())
+    }
 }
 
 pub(crate) fn compose_uri(host: &Uri, path: &str, query: &str) -> Result<Uri> {
