@@ -36,6 +36,10 @@ pub(crate) trait InteractApiExt {
     fn delete<'a, 'b, A>(&self, opts: A) -> ResponseFutureWrapper
     where
         A: IntoRequestArgs<'a, 'b>;
+
+    fn head<'a, 'b, A>(&self, opts: A) -> ResponseFutureWrapper
+    where
+        A: IntoRequestArgs<'a, 'b>;
 }
 
 impl<T> InteractApiExt for T
@@ -88,6 +92,13 @@ where
         A: IntoRequestArgs<'a, 'b>,
     {
         self.request(opts.into_request_args(), Method::DELETE)
+    }
+
+    fn head<'a, 'b, A>(&self, opts: A) -> ResponseFutureWrapper
+    where
+        A: IntoRequestArgs<'a, 'b>,
+    {
+        self.request(opts.into_request_args(), Method::HEAD)
     }
 }
 

@@ -149,3 +149,15 @@ pub enum Status {
     Untagged(String),
     Deleted(String),
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerPathStat {
+    pub name: String,
+    pub size: u64,
+    pub mode: u32,
+    #[serde(default)]
+    pub is_dir: bool,
+    pub mtime: String,
+    pub link_target: String,
+}

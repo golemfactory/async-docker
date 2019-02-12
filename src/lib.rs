@@ -22,6 +22,7 @@ extern crate serde_derive;
 #[macro_use]
 extern crate error_chain;
 
+extern crate base64;
 extern crate bytes;
 extern crate futures;
 extern crate http;

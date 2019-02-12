@@ -2,6 +2,7 @@ use build::LogsOptions;
 use futures::{Future, Stream};
 use std::borrow::Cow;
 use Error;
+use errors::ErrorKind;
 
 use transport::parse::{
     empty_result2, parse_to_lines, parse_to_stream, parse_to_trait, transform_stream,
@@ -17,6 +18,7 @@ use hyper::{Body, Chunk};
 use models::{
     ContainerChangeResponseItem, ContainerConfig, ContainerTopResponse, ExecConfig, IdResponse,
 };
+use representation::rep::ContainerPathStat;
 use representation::rep::Stats;
 use serde_json::Value;
 use std::{sync::Arc, time::Duration};
@@ -277,6 +279,47 @@ impl Container {
             let args = (path.as_str(), query.as_slice(), body);
             empty_result2(interact.put(args))
         })
+    }
+
+    pub fn file_info(&self, container_path: &str) -> impl Future<Item = ContainerPathStat, Error = Error> + Send {
+        use base64;
+
+        let path = format!("/containers/{}/archive", self.id);
+        let query = format!("path={}", container_path);
+        let args = (path.as_str(), Some(query.as_str()));
+
+        self.interact
+            .head(args)
+            .and_then(|resp_fut| resp_fut
+                .map_err(Error::from))
+            .and_then(|resp| {
+                println!("{:?}", resp);
+                resp.headers()
+                    .get("X-Docker-Container-Path-Stat")
+                    .ok_or("Downloaded file does not have X-Docker-Container-Path-Stat header")
+                    .and_then(|header| {
+                        header
+                            .to_str()
+                            .map_err(|_| "Incorrect ascii text in X-Docker-Container-Path-Stat header")
+                    })
+                    .and_then(|text| {
+                        base64::decode(text)
+                            .map_err(|_| "Incorrect base64 in X-Docker-Container-Path-Stat header")
+                    }).and_then(|vec| {
+                        String::from_utf8(vec)
+                            .map_err(|_| "Incorrect ascii in X-Docker-Container-Path-Stat header")
+                    })
+                    .and_then(|json| {
+                        serde_json::from_str::<ContainerPathStat>(json.as_str())
+                            .map_err(|_| "Incorrect json in X-Docker-Container-Path-Stat header")
+                    })
+                    .map(|mut x: ContainerPathStat| {
+                        x.is_dir = (x.mode & 0x80000000) == 0x80000000;
+                        x.mode = x.mode & 0o777;
+                        x
+                    })
+                    .map_err(|e| ErrorKind::Message(e.to_string()).into())
+            })
     }
 
     // todo attach, attach/ws, copy
