@@ -281,7 +281,7 @@ impl Container {
         })
     }
 
-    pub fn file_info(&self, container_path: &str) -> impl Future<Item = ContainerPathStat, Error = Error> + Send {
+    pub fn file_info(&self, container_path: &str) -> impl Future<Item = Option<ContainerPathStat>, Error = Error> + Send {
         use base64;
 
         let path = format!("/containers/{}/archive", self.id);
@@ -293,6 +293,9 @@ impl Container {
             .and_then(|resp_fut| resp_fut
                 .map_err(Error::from))
             .and_then(|resp| {
+                if resp.status() == StatusCode::from_u16(404).unwrap() {
+                    return Ok(None)
+                }
                 println!("{:?}", resp);
                 resp.headers()
                     .get("X-Docker-Container-Path-Stat")
@@ -316,7 +319,7 @@ impl Container {
                     .map(|mut x: ContainerPathStat| {
                         x.is_dir = (x.mode & 0x80000000) == 0x80000000;
                         x.mode = x.mode & 0o777;
-                        x
+                        Some(x)
                     })
                     .map_err(|e| ErrorKind::Message(e.to_string()).into())
             })
