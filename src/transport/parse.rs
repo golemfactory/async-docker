@@ -10,7 +10,7 @@ use self::tokio_codec::{BytesCodec, FramedWrite};
 use super::lines::Lines;
 use bytes::Bytes;
 use errors::*;
-use futures::{future, stream, Sink, Stream};
+use futures::{future, Sink, Stream};
 use http::{uri::PathAndQuery, StatusCode};
 use hyper::{Chunk, Response};
 use models::ErrorResponse;
