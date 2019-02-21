@@ -1,7 +1,7 @@
 [package]
 
 name = "async_docker"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["destruktiw"]
 description = "A Rust asynchronous interface for Docker API"
 homepage = "https://github.com/destruktiw/async-docker"
