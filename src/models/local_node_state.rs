@@ -14,19 +14,19 @@
 use serde_json::Value;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LocalNodeState {}
+#[serde(rename_all = "lowercase")]
+pub enum LocalNodeState {
+    None,
+    Inactive,
+    Pending,
+    Active,
+    Error,
+    Locked,
+}
 
 impl LocalNodeState {
     /// Current local status of this node.
     pub fn new() -> LocalNodeState {
-        LocalNodeState {}
+        LocalNodeState::None
     }
 }
-
-// TODO enum
-// List of LocalNodeState
-//const (
-//
-//
-//
-//)

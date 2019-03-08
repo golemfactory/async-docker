@@ -20,25 +20,25 @@ pub struct Image {
     #[serde(rename = "RepoDigests")]
     repo_digests: Option<Vec<String>>,
     #[serde(rename = "Parent")]
-    parent: String,
+    parent: Option<String>,
     #[serde(rename = "Comment")]
-    comment: String,
+    comment: Option<String>,
     #[serde(rename = "Created")]
-    created: String,
+    created: i64,
     #[serde(rename = "Container")]
-    container: String,
+    container: Option<String>,
     #[serde(rename = "ContainerConfig")]
     container_config: Option<::models::ContainerConfig>,
     #[serde(rename = "DockerVersion")]
-    docker_version: String,
+    docker_version: Option<String>,
     #[serde(rename = "Author")]
-    author: String,
+    author: Option<String>,
     #[serde(rename = "Config")]
     config: Option<::models::ContainerConfig>,
     #[serde(rename = "Architecture")]
-    architecture: String,
+    architecture: Option<String>,
     #[serde(rename = "Os")]
-    os: String,
+    os: Option<String>,
     #[serde(rename = "OsVersion")]
     os_version: Option<String>,
     #[serde(rename = "Size")]
@@ -46,9 +46,9 @@ pub struct Image {
     #[serde(rename = "VirtualSize")]
     virtual_size: i64,
     #[serde(rename = "GraphDriver")]
-    graph_driver: ::models::GraphDriverData,
+    graph_driver: Option<::models::GraphDriverData>,
     #[serde(rename = "RootFS")]
-    root_fs: ::models::ImageRootFs,
+    root_fs: Option<::models::ImageRootFs>,
     #[serde(rename = "Metadata")]
     metadata: Option<::models::ImageMetadata>,
 }
@@ -56,18 +56,18 @@ pub struct Image {
 impl Image {
     pub fn new(
         id: String,
-        parent: String,
-        comment: String,
-        created: String,
-        container: String,
-        docker_version: String,
-        author: String,
-        architecture: String,
-        os: String,
+        parent: Option<String>,
+        comment: Option<String>,
+        created: i64,
+        container: Option<String>,
+        docker_version: Option<String>,
+        author: Option<String>,
+        architecture: Option<String>,
+        os: Option<String>,
         size: i64,
         virtual_size: i64,
-        graph_driver: ::models::GraphDriverData,
-        root_fs: ::models::ImageRootFs,
+        graph_driver: Option<::models::GraphDriverData>,
+        root_fs: Option<::models::ImageRootFs>,
     ) -> Image {
         Image {
             id: id,
@@ -139,55 +139,55 @@ impl Image {
         self.repo_digests = None;
     }
 
-    pub fn set_parent(&mut self, parent: String) {
+    pub fn set_parent(&mut self, parent: Option<String>) {
         self.parent = parent;
     }
 
-    pub fn with_parent(mut self, parent: String) -> Image {
+    pub fn with_parent(mut self, parent: Option<String>) -> Image {
         self.parent = parent;
         self
     }
 
-    pub fn parent(&self) -> &String {
+    pub fn parent(&self) -> &Option<String> {
         &self.parent
     }
 
-    pub fn set_comment(&mut self, comment: String) {
+    pub fn set_comment(&mut self, comment: Option<String>) {
         self.comment = comment;
     }
 
-    pub fn with_comment(mut self, comment: String) -> Image {
+    pub fn with_comment(mut self, comment: Option<String>) -> Image {
         self.comment = comment;
         self
     }
 
-    pub fn comment(&self) -> &String {
+    pub fn comment(&self) -> &Option<String> {
         &self.comment
     }
 
-    pub fn set_created(&mut self, created: String) {
+    pub fn set_created(&mut self, created: i64) {
         self.created = created;
     }
 
-    pub fn with_created(mut self, created: String) -> Image {
+    pub fn with_created(mut self, created: i64) -> Image {
         self.created = created;
         self
     }
 
-    pub fn created(&self) -> &String {
+    pub fn created(&self) -> &i64 {
         &self.created
     }
 
-    pub fn set_container(&mut self, container: String) {
+    pub fn set_container(&mut self, container: Option<String>) {
         self.container = container;
     }
 
-    pub fn with_container(mut self, container: String) -> Image {
+    pub fn with_container(mut self, container: Option<String>) -> Image {
         self.container = container;
         self
     }
 
-    pub fn container(&self) -> &String {
+    pub fn container(&self) -> &Option<String> {
         &self.container
     }
 
@@ -208,29 +208,29 @@ impl Image {
         self.container_config = None;
     }
 
-    pub fn set_docker_version(&mut self, docker_version: String) {
+    pub fn set_docker_version(&mut self, docker_version: Option<String>) {
         self.docker_version = docker_version;
     }
 
-    pub fn with_docker_version(mut self, docker_version: String) -> Image {
+    pub fn with_docker_version(mut self, docker_version: Option<String>) -> Image {
         self.docker_version = docker_version;
         self
     }
 
-    pub fn docker_version(&self) -> &String {
+    pub fn docker_version(&self) -> &Option<String> {
         &self.docker_version
     }
 
-    pub fn set_author(&mut self, author: String) {
+    pub fn set_author(&mut self, author: Option<String>) {
         self.author = author;
     }
 
-    pub fn with_author(mut self, author: String) -> Image {
+    pub fn with_author(mut self, author: Option<String>) -> Image {
         self.author = author;
         self
     }
 
-    pub fn author(&self) -> &String {
+    pub fn author(&self) -> &Option<String> {
         &self.author
     }
 
@@ -251,29 +251,29 @@ impl Image {
         self.config = None;
     }
 
-    pub fn set_architecture(&mut self, architecture: String) {
+    pub fn set_architecture(&mut self, architecture: Option<String>) {
         self.architecture = architecture;
     }
 
-    pub fn with_architecture(mut self, architecture: String) -> Image {
+    pub fn with_architecture(mut self, architecture: Option<String>) -> Image {
         self.architecture = architecture;
         self
     }
 
-    pub fn architecture(&self) -> &String {
+    pub fn architecture(&self) -> &Option<String> {
         &self.architecture
     }
 
-    pub fn set_os(&mut self, os: String) {
+    pub fn set_os(&mut self, os: Option<String>) {
         self.os = os;
     }
 
-    pub fn with_os(mut self, os: String) -> Image {
+    pub fn with_os(mut self, os: Option<String>) -> Image {
         self.os = os;
         self
     }
 
-    pub fn os(&self) -> &String {
+    pub fn os(&self) -> &Option<String> {
         &self.os
     }
 
@@ -320,29 +320,29 @@ impl Image {
         &self.virtual_size
     }
 
-    pub fn set_graph_driver(&mut self, graph_driver: ::models::GraphDriverData) {
+    pub fn set_graph_driver(&mut self, graph_driver: Option<::models::GraphDriverData>) {
         self.graph_driver = graph_driver;
     }
 
-    pub fn with_graph_driver(mut self, graph_driver: ::models::GraphDriverData) -> Image {
+    pub fn with_graph_driver(mut self, graph_driver: Option<::models::GraphDriverData>) -> Image {
         self.graph_driver = graph_driver;
         self
     }
 
-    pub fn graph_driver(&self) -> &::models::GraphDriverData {
+    pub fn graph_driver(&self) -> &Option<::models::GraphDriverData> {
         &self.graph_driver
     }
 
-    pub fn set_root_fs(&mut self, root_fs: ::models::ImageRootFs) {
+    pub fn set_root_fs(&mut self, root_fs: Option<::models::ImageRootFs>) {
         self.root_fs = root_fs;
     }
 
-    pub fn with_root_fs(mut self, root_fs: ::models::ImageRootFs) -> Image {
+    pub fn with_root_fs(mut self, root_fs: Option<::models::ImageRootFs>) -> Image {
         self.root_fs = root_fs;
         self
     }
 
-    pub fn root_fs(&self) -> &::models::ImageRootFs {
+    pub fn root_fs(&self) -> &Option<::models::ImageRootFs> {
         &self.root_fs
     }
 

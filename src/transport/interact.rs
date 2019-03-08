@@ -72,7 +72,7 @@ where
         A: IntoRequestArgs<'a, 'b>,
     {
         let mut opts = opts.into_request_args();
-        #[cfg(target_os = "linux")]
+        #[cfg(unix)]
         opts.set_header(
             CONNECTION,
             HeaderValue::from_str("close")

@@ -1,4 +1,4 @@
-#![cfg(target_os = "linux")]
+#![cfg(unix)]
 
 extern crate tokio_uds;
 extern crate unix_socket;

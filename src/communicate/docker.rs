@@ -13,7 +13,7 @@ use build::EventsOptions;
 #[cfg(feature = "ssl")]
 use super::ssl_tcp_docker::TcpSSLDocker;
 use super::tcp_docker::TcpDocker;
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
 use super::unix_docker::UnixDocker;
 use communicate::{
     containers::Containers, image::Image, networks::Networks, Container, Images, Network,
@@ -161,7 +161,7 @@ pub fn new_docker(host: Option<Uri>) -> Result<Box<DockerApi>> {
     let scheme = host.scheme_part().map(|a| a.as_str().to_string());
     match scheme.as_slice() {
         Some(scheme) => match scheme {
-            #[cfg(target_os = "linux")]
+            #[cfg(unix)]
             "unix" => UnixDocker::new(host),
             #[cfg(feature = "ssl")]
             "https" => TcpSSLDocker::new(host),
