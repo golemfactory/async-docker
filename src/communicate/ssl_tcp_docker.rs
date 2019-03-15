@@ -20,12 +20,12 @@ const THREADS: usize = 1;
 fn https_schema(uri: Uri) -> Result<Uri> {
     let mut parts = uri.into_parts();
     parts.scheme = Some(Scheme::HTTPS);
-    Uri::from_parts(parts)
+    Uri::from_parts(parts).map_err(Error::from)
 }
 
 impl Docker<HttpsConnector<HttpConnector>> {
     pub(crate) fn new(host: Uri) -> Result<Box<DockerApi>> {
-        let uri = https_schema(uri)?;
+        let host = https_schema(host)?;
 
         let certs = env::var("DOCKER_CERT_PATH")
             .ok()
