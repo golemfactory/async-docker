@@ -1,4 +1,4 @@
-//! Representations of various client errors
+#![allow(deprecated)]
 
 use hyper::StatusCode;
 use models::ErrorResponse;
