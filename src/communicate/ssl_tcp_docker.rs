@@ -7,6 +7,7 @@ use self::{hyper_openssl::HttpsConnector, openssl::ssl::SslMethod};
 use self::openssl::ssl::{SslConnector, SslFiletype};
 use communicate::docker::{Docker, DockerApi};
 use errors::Result;
+use http::uri::Scheme;
 use hyper::{client::HttpConnector, Client, Uri};
 use std::{env, path::Path, sync::Arc};
 use transport::interact::Interact;
@@ -16,8 +17,16 @@ pub(crate) type TcpSslDocker = Docker<HttpsConnector<HttpConnector>>;
 
 const THREADS: usize = 1;
 
+fn https_schema(uri: Uri) -> Result<Uri> {
+    let mut parts = uri.into_parts();
+    parts.scheme = Some(Scheme::HTTPS);
+    Uri::from_parts(parts)
+}
+
 impl Docker<HttpsConnector<HttpConnector>> {
     pub(crate) fn new(host: Uri) -> Result<Box<DockerApi>> {
+        let uri = https_schema(uri)?;
+
         let certs = env::var("DOCKER_CERT_PATH")
             .ok()
             .expect("DOCKER_CERT_PATH env variable not set");

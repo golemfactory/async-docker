@@ -164,7 +164,7 @@ pub fn new_docker(host: Option<Uri>) -> Result<Box<DockerApi>> {
             #[cfg(unix)]
             "unix" => UnixDocker::new(host),
             #[cfg(feature = "ssl")]
-            "https" | "tls" => TcpSslDocker::new(host),
+            "https" | "tcp" => TcpSslDocker::new(host),
             "http" => TcpDocker::new(host),
             _ => Err(ErrorKind::InvalidScheme.into()),
         },
