@@ -10,7 +10,7 @@ use hyper::{Body, HeaderMap};
 use std::str;
 use url::form_urlencoded;
 
-pub(crate) const URI_ENV: &'static str = "SHIPLIFT_URI";
+pub(crate) const URI_ENV: &'static str = "DOCKER_HOST";
 pub(crate) const DEFAULT_URI: &'static str = "unix://var/run/docker.sock";
 
 pub(crate) fn build_simple_query<A>(name: &str, value: Option<A>) -> Option<String>

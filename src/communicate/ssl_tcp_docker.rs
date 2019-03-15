@@ -2,30 +2,25 @@
 
 extern crate hyper_openssl;
 extern crate openssl;
-use self::hyper_openssl::HttpsConnector;
-use self::openssl::ssl::SslMethod;
+use self::{hyper_openssl::HttpsConnector, openssl::ssl::SslMethod};
 
-use communicate::docker::Docker;
-use communicate::docker::DockerApi;
+use self::openssl::ssl::{SslConnector, SslFiletype};
+use communicate::docker::{Docker, DockerApi};
 use errors::Result;
-use hyper::client::HttpConnector;
-use hyper::Client;
-use hyper::Uri;
-use std::env;
-use std::path::Path;
-use std::sync::Arc;
+use hyper::{client::HttpConnector, Client, Uri};
+use std::{env, path::Path, sync::Arc};
 use transport::interact::Interact;
 use Error;
-use self::openssl::ssl::SslConnector;
-use self::openssl::ssl::SslFiletype;
 
-pub(crate) type TcpSSLDocker = Docker<HttpsConnector<HttpConnector>>;
+pub(crate) type TcpSslDocker = Docker<HttpsConnector<HttpConnector>>;
 
 const THREADS: usize = 1;
 
 impl Docker<HttpsConnector<HttpConnector>> {
     pub(crate) fn new(host: Uri) -> Result<Box<DockerApi>> {
-        let certs = env::var("DOCKER_CERT_PATH").ok().expect("No SSL cert");
+        let certs = env::var("DOCKER_CERT_PATH")
+            .ok()
+            .expect("DOCKER_CERT_PATH env variable not set");
 
         let cert = &format!("{}/cert.pem", certs);
         let key = &format!("{}/key.pem", certs);

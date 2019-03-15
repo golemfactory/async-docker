@@ -11,7 +11,7 @@ use std::env;
 use build::EventsOptions;
 
 #[cfg(feature = "ssl")]
-use super::ssl_tcp_docker::TcpSSLDocker;
+use super::ssl_tcp_docker::TcpSslDocker;
 use super::tcp_docker::TcpDocker;
 #[cfg(unix)]
 use super::unix_docker::UnixDocker;
@@ -164,7 +164,7 @@ pub fn new_docker(host: Option<Uri>) -> Result<Box<DockerApi>> {
             #[cfg(unix)]
             "unix" => UnixDocker::new(host),
             #[cfg(feature = "ssl")]
-            "https" => TcpSSLDocker::new(host),
+            "https" | "tls" => TcpSslDocker::new(host),
             "http" => TcpDocker::new(host),
             _ => Err(ErrorKind::InvalidScheme.into()),
         },
