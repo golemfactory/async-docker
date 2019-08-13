@@ -264,7 +264,9 @@ impl Container {
         //let copy_self_2 = self.clone();
         self.create_exec(opts)
             .and_then(move |id| {
-                future::ok(copy_self.start_exec(id.clone())).join(future::ok(id))
+                let stream = copy_self.start_exec(id.clone());
+                let exec_status = copy_self.check_exec_status(id);
+                future::ok(stream).join(exec_status)
             })
             /*.and_then(|(stream, id)| {
                 (copy_self_2.check_exec_status(id)).join(future::ok(stream))
