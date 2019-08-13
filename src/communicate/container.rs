@@ -232,6 +232,15 @@ impl Container {
         })
     }
 
+    /* TODO */
+    pub fn check_exec_status(&self, id: String) -> impl Future<Item = String, Error = Error> {
+        let path = format!("/exec/{}/json", id);
+        self.interact.post_json((path.as_str(), Option::<&str>::None))
+            .and_then(|val| {
+                future::ok("0".to_string()) /* TODO */
+            })
+    }
+
     pub fn start_exec(&self, id: String) -> impl Stream<Item = (u32, Chunk), Error = Error> {
         let path = format!("/exec/{}/start", id);
         let body = Some(Body::from("{}".to_string()));
@@ -252,9 +261,21 @@ impl Container {
         opts: &ExecContainerOptions,
     ) -> impl Stream<Item = (u32, Chunk), Error = Error> {
         let copy_self = self.clone();
+        //let copy_self_2 = self.clone();
         self.create_exec(opts)
-            .and_then(move |id| Ok(copy_self.start_exec(id)))
+            .and_then(move |id| {
+                future::ok(copy_self.start_exec(id.clone())).join(future::ok(id))
+            })
+            /*.and_then(|(stream, id)| {
+                (copy_self_2.check_exec_status(id)).join(future::ok(stream))
+            })*/
+            .and_then(|(stream, _status)| {
+                future::ok(stream)
+            })
             .flatten_stream()
+/*          .and_then(move |id| Ok(copy_self.start_exec(id)))
+            .flatten_stream()
+            */
     }
 
     pub fn archive_get(&self, pth: &str) -> impl Stream<Item = Chunk, Error = Error> {
