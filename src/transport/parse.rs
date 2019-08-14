@@ -52,7 +52,8 @@ pub(crate) fn status_code(
         .and_then(|response| {
             debug!("GET");
             future::ok(response.status())
-        }).map_err(Error::from)
+        })
+        .map_err(Error::from)
 }
 
 pub(crate) fn parse_to_trait<T>(
@@ -85,8 +86,10 @@ pub(crate) fn parse_to_lines(
                     let lines = Lines::new(body);
 
                     Ok(lines)
-                }).map_err(Error::from)
-        }).flatten_stream()
+                })
+                .map_err(Error::from)
+        })
+        .flatten_stream()
 }
 
 pub(crate) fn parse_to_stream<T>(
@@ -113,8 +116,10 @@ where
                     });
 
                     Ok(mapped)
-                }).map_err(Error::from)
-        }).flatten_stream()
+                })
+                .map_err(Error::from)
+        })
+        .flatten_stream()
 }
 
 #[allow(dead_code)]
@@ -129,7 +134,8 @@ pub(crate) fn parse_to_file(
 
                 Ok(body)
             })
-        }).flatten_stream();
+        })
+        .flatten_stream();
 
     let file = File::create(Path::new(filepath));
 

@@ -1,15 +1,14 @@
 extern crate async_docker;
-extern crate http;
 extern crate futures;
+extern crate http;
 extern crate tokio;
 
-use async_docker::{DockerApi, new_docker};
+use async_docker::{new_docker, DockerApi};
+use futures::Stream;
 use futures::{future, Future};
 use std::env;
 use std::fs::OpenOptions;
 use std::io::copy;
-use futures::Stream;
-
 
 fn main() {
     if env::args().count() < 2 {
@@ -19,7 +18,7 @@ fn main() {
 
     let image_id = env::args().nth(1).unwrap();
 
-    let work = future::lazy(||  {
+    let work = future::lazy(|| {
         let docker: Box<DockerApi> = new_docker(None).unwrap();
 
         let mut export = OpenOptions::new()

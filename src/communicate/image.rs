@@ -64,7 +64,8 @@ impl<'b> Image<'b> {
                         obj.get("Deleted")
                             .ok_or_else(|| {
                                 Error::from(EK::JsonFieldMissing("Deleted' or 'Untagged"))
-                            }).and_then(|sha| {
+                            })
+                            .and_then(|sha| {
                                 sha.as_str()
                                     .map(|s| Status::Deleted(s.to_owned()))
                                     .ok_or_else(|| {
@@ -72,7 +73,8 @@ impl<'b> Image<'b> {
                                     })
                             })
                     }
-                }).collect()
+                })
+                .collect()
         }
 
         let args = format!("/images/{}", self.name);

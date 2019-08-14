@@ -1,9 +1,9 @@
 extern crate async_docker;
-extern crate http;
 extern crate futures;
+extern crate http;
 extern crate tokio;
 
-use async_docker::{DockerApi, new_docker, ExecContainerOptions};
+use async_docker::{new_docker, DockerApi, ExecContainerOptions};
 use futures::{future, Future, Stream};
 use std::env;
 
@@ -29,7 +29,7 @@ fn main() {
         }
     };
 
-    let work = future::lazy(move||  {
+    let work = future::lazy(move || {
         let docker: Box<DockerApi> = new_docker(None).unwrap();
         docker
             .container(id.into())

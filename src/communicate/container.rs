@@ -34,6 +34,8 @@ use transport::interact::InteractApi;
 use transport::interact::InteractApiExt;
 use transport::tty;
 
+pub type ExitStatus = i64;
+
 /// Interface for accessing and manipulating a docker container
 pub struct Container {
     interact: Arc<InteractApi>,
@@ -222,7 +224,8 @@ impl Container {
                         .and_then(|val| {
                             val.as_str()
                                 .ok_or(Error::from(EK::JsonTypeError("Id", "String")))
-                        }).map(|a| {
+                        })
+                        .map(|a| {
                             debug!("String: {}", a.to_string());
                             a.to_string()
                         }),
@@ -232,13 +235,23 @@ impl Container {
         })
     }
 
-    /* TODO */
-    pub fn check_exec_status(&self, id: String) -> impl Future<Item = String, Error = Error> {
+    pub fn check_exec_status(&self, id: String) -> impl Future<Item = ExitStatus, Error = Error> {
         let path = format!("/exec/{}/json", id);
-        self.interact.post_json((path.as_str(), Option::<&str>::None))
-            .and_then(|val| {
-                future::ok("0".to_string()) /* TODO */
-            })
+        parse_to_trait::<Value>(
+            self.interact
+                .post_json((path.as_str(), Option::<&str>::None)),
+        )
+        .and_then(|val| match val {
+            Value::Object(obj) => future::result(
+                obj.get("ExitCode")
+                    .ok_or(Error::from(EK::JsonFieldMissing("ExitCode")))
+                    .and_then(|val| {
+                        val.as_i64()
+                            .ok_or(Error::from(EK::JsonTypeError("ExitCode", "i64")))
+                    }),
+            ),
+            _ => future::err(Error::from(EK::JsonTypeError("<anonymous>", "Object"))),
+        })
     }
 
     pub fn start_exec(&self, id: String) -> impl Stream<Item = (u32, Chunk), Error = Error> {
@@ -259,25 +272,19 @@ impl Container {
     pub fn exec(
         &self,
         opts: &ExecContainerOptions,
-    ) -> impl Stream<Item = (u32, Chunk), Error = Error> {
+    ) -> impl Future<Item = (impl Stream<Item = (u32, Chunk), Error = Error>, ExitStatus), Error = Error>
+    {
         let copy_self = self.clone();
-        //let copy_self_2 = self.clone();
+        let copy_self_2 = self.clone();
         self.create_exec(opts)
             .and_then(move |id| {
                 let stream = copy_self.start_exec(id.clone());
-                let exec_status = copy_self.check_exec_status(id);
+                future::ok(stream).join(future::ok(id))
+            })
+            .and_then(move |(stream, id)| {
+                let exec_status = copy_self_2.check_exec_status(id);
                 future::ok(stream).join(exec_status)
             })
-            /*.and_then(|(stream, id)| {
-                (copy_self_2.check_exec_status(id)).join(future::ok(stream))
-            })*/
-            .and_then(|(stream, _status)| {
-                future::ok(stream)
-            })
-            .flatten_stream()
-/*          .and_then(move |id| Ok(copy_self.start_exec(id)))
-            .flatten_stream()
-            */
     }
 
     pub fn archive_get(&self, pth: &str) -> impl Stream<Item = Chunk, Error = Error> {

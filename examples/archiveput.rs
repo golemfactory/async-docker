@@ -1,12 +1,12 @@
 extern crate async_docker;
-extern crate http;
 extern crate futures;
+extern crate http;
 extern crate tokio;
 
-use async_docker::{DockerApi, new_docker};
+use async_docker::build::ContainerArchiveOptionsBuilder;
+use async_docker::{new_docker, DockerApi};
 use futures::{future, Future};
 use std::env;
-use async_docker::build::ContainerArchiveOptionsBuilder;
 
 fn main() {
     if env::args().count() < 3 {

@@ -5,7 +5,9 @@ extern crate openssl;
 use self::hyper_openssl::HttpsConnector;
 use self::openssl::ssl::SslMethod;
 
+use self::openssl::ssl::SslConnector;
 use self::openssl::ssl::SslContextBuilder;
+use self::openssl::ssl::SslFiletype;
 use communicate::docker::Docker;
 use communicate::docker::DockerApi;
 use errors::Result;
@@ -17,8 +19,6 @@ use std::path::Path;
 use std::sync::Arc;
 use transport::interact::Interact;
 use Error;
-use self::openssl::ssl::SslConnector;
-use self::openssl::ssl::SslFiletype;
 
 pub(crate) type TcpSSLDocker = Docker<HttpsConnector<HttpConnector>>;
 

@@ -132,7 +132,8 @@ where
             future::result(uri_result)
                 .and_then(move |uri| {
                     ::transport::build_request(method, uri, b).map_err(Error::from)
-                }).map_err(Error::from)
+                })
+                .map_err(Error::from)
                 // Inserting header elements one-by-one
                 .and_then(move |mut request| {
                     for h in h {
@@ -140,7 +141,8 @@ where
                         request.headers_mut().insert(key, h.1);
                     }
                     Ok(request)
-                }).and_then(move |request| Ok(client.request(request))),
+                })
+                .and_then(move |request| Ok(client.request(request))),
         )
     }
 }
