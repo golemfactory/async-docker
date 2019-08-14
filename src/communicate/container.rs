@@ -27,6 +27,8 @@ use transport::{
     tty,
 };
 
+pub type ExitStatus = i64;
+
 /// Interface for accessing and manipulating a docker container
 pub struct Container {
     interact: Arc<InteractApi>,
@@ -212,8 +214,8 @@ impl Container {
         parse_to_trait(self.interact.post_json(args))
     }
 
-    pub fn start_exec(&self, id: String) -> impl Stream<Item = (u32, Chunk), Error = Error> {
-        let path = format!("/exec/{}/start", id);
+    pub fn start_exec(&self, id: &IdResponse) -> impl Stream<Item = (u32, Chunk), Error = Error> {
+        let path = format!("/exec/{}/start", id.id());
         let body = Some(Body::from("{}".to_string()));
         let args = (path.as_str(), body);
 
@@ -227,11 +229,36 @@ impl Container {
         tty::decode(body_future)
     }
 
-    pub fn exec(&self, opts: &ExecConfig) -> impl Stream<Item = (u32, Chunk), Error = Error> {
+    pub fn check_exec_status(&self, id: &IdResponse) -> impl Future<Item = ExitStatus, Error = Error> {
+        let path = format!("/exec/{}/json", id.id());
+        parse_to_trait::<Value>(
+            self.interact
+                .get((path.as_str(), Option::<&str>::None)),
+        )
+        .and_then(|val| match val {
+            Value::Object(obj) => future::result(
+                obj.get("ExitCode")
+                    .ok_or(Error::from(ErrorKind::JsonFieldMissing("ExitCode")))
+                    .and_then(|val| {
+                        val.as_i64()
+                            .ok_or(Error::from(ErrorKind::JsonTypeError("ExitCode", "i64")))
+                    }),
+            ),
+            _ => future::err(Error::from(ErrorKind::JsonTypeError("<anonymous>", "Object"))),
+        })
+    }
+
+    pub fn exec(
+        &self,
+        opts: &ExecConfig,
+    ) -> impl Future<Item = (impl Stream<Item = (u32, Chunk), Error = Error>, IdResponse), Error = Error>
+    {
         let copy_self = self.clone();
         self.create_exec(opts)
-            .and_then(move |res| Ok(copy_self.start_exec(res.id().to_owned())))
-            .flatten_stream()
+            .and_then(move |id| {
+                let stream = copy_self.start_exec(&id);
+                future::ok(stream).join(future::ok(id))
+            })
     }
 
     pub fn archive_get(&self, pth: &str) -> impl Stream<Item = Bytes, Error = Error> {
@@ -284,8 +311,6 @@ impl Container {
         &self,
         container_path: &str,
     ) -> impl Future<Item = Option<ContainerPathStat>, Error = Error> + Send {
-        use base64;
-
         let path = format!("/containers/{}/archive", self.id);
         let query = format!("path={}", container_path);
         let args = (path.as_str(), Some(query.as_str()));
