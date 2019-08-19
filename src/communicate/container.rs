@@ -257,7 +257,7 @@ impl Container {
         self.create_exec(opts)
             .and_then(move |id| {
                 let stream = copy_self.start_exec(&id);
-                future::ok(stream).join(future::ok(id))
+                future::ok(stream).join(Ok(id))
             })
     }
 
