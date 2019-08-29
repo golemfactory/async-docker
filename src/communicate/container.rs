@@ -124,7 +124,7 @@ impl Container {
         let query = build_simple_query("t", wait.map(|w| w.as_secs().to_string()));
         let args = (path.as_str(), query.as_slice());
 
-        parse_to_trait(self.interact.post(args))
+        empty_result2(self.interact.post(args)).map(|_| ())
     }
 
     /// Restart the container instance
