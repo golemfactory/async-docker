@@ -169,6 +169,7 @@ where
 {
     let body = str::from_utf8(chunk).map_err(Error::from)?;
     if status.is_success() {
+        let body = if body.is_empty() { "null" } else { body };
         de_from_str::<T>(body).map_err(|e| ErrorKind::DockerApiUnknown(e.to_string(), status))
     } else {
         Err(match de_from_str::<ErrorResponse>(body) {
